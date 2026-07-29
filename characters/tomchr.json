@@ -14,15 +14,10 @@
   "faceIdWeightV2": 0.75,
   "openPoseStrength": 0.92,
   "openImages": true,
-
-  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even studio lighting, plain solid light gray background",
-
+  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even studio lighting, plain solid light gray background, not realistic",
   "appearance": "cute cartoon boy named Tom, 10 years old, masculine face, short messy brown hair with bangs, big expressive brown eyes, small nose, friendly smile, fair skin, slim build",
-
   "outfit": "ALWAYS identical outfit: solid navy blue short-sleeve crew-neck t-shirt (no logo, no raglan, no stripes), solid navy blue long pants, plain white sneakers with white laces, empty hands, no hands in pockets",
-
-  "negative": "photo, photorealistic, 3d render, pixar, disney 3d, feminine, androgynous, girl, woman, makeup, lipstick, mask, face covering, sunglasses, hat, logo, emblem, print, raglan shirt, white shirt, tank top, sleeveless, shorts, capri pants, hands in pockets, extra limbs, extra arms, mutated hands, holding object, backpack, gloves, phone, cup, ball, bag, stick, dark background, circle backdrop, room corner, pillars, panels, dramatic lighting, neon, text, watermark, blurry, low quality, duplicate, twin, two people, multiple people, character sheet, reference sheet, turnaround sheet, expression sheet, collage, montage, grid, multiple heads, floating heads, inset portraits, concept sheet",
-
+  "negative": "photo, photorealistic, realistic skin texture, detailed pores, hyperrealistic, cinematic lighting, dramatic lighting, 3d render, pixar, disney 3d, feminine, androgynous, girl, woman, makeup, lipstick, mask, face covering, sunglasses, hat, logo, emblem, print, raglan shirt, white shirt, tank top, sleeveless, shorts, capri pants, hands in pockets, twisted neck, broken neck, looking over shoulder, extra legs, ghost legs, double legs, fused legs, extra feet, extra limbs, extra arms, mutated hands, holding object, backpack, gloves, phone, cup, ball, bag, stick, dark background, circle backdrop, room corner, pillars, panels, neon, text, watermark, blurry, low quality, duplicate, twin, two people, multiple people, character sheet, reference sheet, turnaround sheet, expression sheet, collage, montage, grid, multiple heads, floating heads, inset portraits, concept sheet",
   "shots": [
     {
       "id": "01_front_stand",
@@ -51,55 +46,56 @@
     {
       "id": "04_threequarter_left_stand",
       "angleKey": "threequarter_left",
-      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body looking left-forward, profile of right cheek visible, NOT facing camera straight on",
+      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body looking left-forward, natural neck alignment, profile of right cheek visible, NOT facing camera, NOT twisting head toward camera",
       "pose": "standing straight, arms at sides",
       "poseKey": "stand",
       "captionExtra": "standing, three-quarter left view",
-      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, straight-on portrait, eye contact"
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, twisted neck, looking over shoulder, straight-on portrait, eye contact"
     },
     {
       "id": "05_threequarter_right_walk",
       "angleKey": "threequarter_right",
-      "angle": "three-quarter view from the right, body turned 40 degrees to the right, face turned with body looking right-forward, NOT facing camera straight on",
-      "pose": "walking mid-stride, left leg forward, arms swinging naturally",
+      "angle": "three-quarter view from the right, body turned 40 degrees to the right, face turned with body looking right-forward, natural neck alignment, NOT facing camera, NOT twisting head toward camera",
+      "pose": "walking mid-stride, left leg forward, arms swinging naturally, exactly two legs only",
       "poseKey": "walk",
       "captionExtra": "walking, three-quarter right view",
-      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, straight-on portrait, eye contact"
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, twisted neck, ghost legs, double legs, extra legs, straight-on portrait, eye contact"
     },
     {
       "id": "06_side_left_stand",
       "angleKey": "side_left",
-      "angle": "strict left profile side view, 90 degrees, body and face both facing left, only one eye and one ear visible, nose pointing left, NOT facing camera",
-      "pose": "standing straight, arms at sides, looking left",
+      "angle": "strict left profile side view, 90 degrees, body and face both facing left, natural neck, only one eye and one ear visible, nose pointing left, NOT facing camera, NOT twisting head toward camera",
+      "pose": "standing straight, arms at sides, looking left, head aligned with torso",
       "poseKey": "stand",
       "captionExtra": "standing, left profile side view",
-      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, eye contact"
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, twisted neck, looking over shoulder, eye contact"
     },
     {
       "id": "07_side_right_walk",
       "angleKey": "side_right",
-      "angle": "strict right profile side view, 90 degrees, body and face both facing right, only one eye and one ear visible, nose pointing right, NOT facing camera",
-      "pose": "walking mid-stride, arms swinging, looking right",
+      "angle": "strict right profile side view, 90 degrees, body and face both facing right, natural neck, only one eye and one ear visible, nose pointing right, NOT facing camera, NOT twisting head toward camera",
+      "pose": "walking mid-stride, arms swinging, looking right, head aligned with torso, exactly two legs only",
       "poseKey": "walk",
       "captionExtra": "walking, right profile side view",
-      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, eye contact"
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, twisted neck, looking over shoulder, ghost legs, double legs, extra legs, eye contact"
     },
     {
       "id": "08_threequarter_back",
       "angleKey": "threequarter_back_left",
-      "angle": "rear three-quarter view from behind the left, back mostly toward camera, head also turned away with body, back of head visible, NOT looking at camera",
-      "pose": "standing, facing away",
+      "angle": "rear three-quarter view from behind the left, back mostly toward camera, head facing away with body, back of head visible, natural neck, NOT looking at camera, NOT looking over shoulder",
+      "pose": "standing, facing away, head not turned toward camera",
       "poseKey": "stand",
       "captionExtra": "standing, rear three-quarter view",
-      "extraNegative": "front view, chest facing camera, facing camera, looking at camera, looking at viewer, eye contact, face fully visible"
+      "extraNegative": "front view, chest facing camera, facing camera, looking at camera, looking at viewer, looking over shoulder, twisted neck, eye contact, face fully visible"
     },
     {
       "id": "09_front_sit",
       "angleKey": "front",
       "angle": "front view, body facing camera, looking at camera",
-      "pose": "sitting on an invisible seat, knees bent, hands resting on thighs, feet on floor",
+      "pose": "sitting on an invisible seat, knees bent, hands resting on thighs, feet on floor, exactly two clear legs, flat cel-shaded cartoon style",
       "poseKey": "sit",
-      "captionExtra": "sitting, front view"
+      "captionExtra": "sitting, front view",
+      "extraNegative": "ghost legs, double legs, fused legs, photorealistic, realistic skin"
     },
     {
       "id": "10_front_point",
@@ -127,5 +123,6 @@
       "captionExtra": "portrait, close-up, front view",
       "bust": true
     }
-  ]
+  ],
+  "id": "tomchr"
 }

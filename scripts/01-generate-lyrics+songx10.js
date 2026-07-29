@@ -28,7 +28,7 @@ import { parseArgs, stripBom, comfy, sleep } from "../lib/comfy-client.js";
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, "..");
-const CHAR_PATH = join(ROOT, "character.json");
+const CHAR_PATH = join(ROOT, "characters", "tomchr.json");
 const ACE_ROOT =
   "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ACE-Step-1.5";
 const ACE_PYTHON = join(ACE_ROOT, ".venv", "Scripts", "python.exe");

@@ -7,3 +7,4 @@ loras/
 generations/
 videos/
 dataset/**/poses/
+dataset/**/master_approved.json

@@ -19,7 +19,7 @@ const stepsOverride = (() => {
 })();
 
 const TRAIN_CONFIG_PATH = join(ROOT, flag("--train-config", "train-config.json"));
-const CHAR_CONFIG_PATH = join(ROOT, flag("--character", "character.json"));
+const CHAR_CONFIG_PATH = join(ROOT, flag("--character", "characters/tomchr.json"));
 
 function stripBom(raw) {
   return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;

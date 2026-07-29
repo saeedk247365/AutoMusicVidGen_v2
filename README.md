@@ -1,26 +1,57 @@
 ﻿# AutoMusicVidGen
 
-Nursery / family music-video generation and cartoon character LoRA tooling (from CartoonLoRATrainer).
+Nursery music-video generation + cartoon character LoRA datasets.
 
 ## Requirements
 - Node.js 18+
-- Ollama with `qwen3:14b` (for lyrics / scene plans)
-- ACE-Step 1.5 at the path configured in the scripts
-- ComfyUI running (dataset, LoRA train, stills, Wan video)
+- ComfyUI at `http://127.0.0.1:8188`
+- Ollama `qwen3:14b` (lyrics / scene plans)
+- ACE-Step 1.5 (path set in scripts)
 - ffmpeg on PATH
 
-## Layout
+## Characters
+
+One JSON per character under `characters/`:
+
 ```
-characters/   cast defs (family + LoRA characters) + ref stills
-scenes/       shared empty-room defs + stills
-batches/      song project outputs
-dataset/      LoRA training images + captions
-loras/        trained LoRA weights (local)
-scripts/      all pipeline entrypoints
-lib/          shared Comfy / OpenPose helpers
+characters/
+  adam.json      # toddler boy (family + LoRA shots)
+  tom.json       # dad (family)
+  sasha.json     # mom (family)
+  tomchr.json    # kid Tom LoRA
+  adam/ tom/ sasha/   # generated stills only (no JSON copies)
 ```
 
-## Music / family pipelines
+## Character dataset
+
+Master must be generated and **approved** before keyframes/shots run.
+
+### Adam
+```bash
+npm run generate:adam:master    # re-run until you like it
+npm run generate:adam:approve
+npm run generate:adam
+```
+
+### Tom (LoRA kid)
+```bash
+npm run generate:tom:master
+npm run generate:tom:approve
+npm run generate:tom
+```
+
+Optional: `--ref "E:\path\to\ref.png"` · `--set-master "E:\path\to\still.png"` · `--force`
+
+Outputs: `dataset/adam/` or `dataset/tom/`
+
+### Train LoRA
+```bash
+npm run train
+```
+
+Edit `train-config.json` (`comfyRoot`) first.
+
+## Music / family video
 ```bash
 npm run song
 npm run nursery
@@ -28,21 +59,4 @@ npm run family
 npm run family:chars
 ```
 
-Song outputs land under `batches/`. Shared characters and scenes live at the repo root.
-
-## Character dataset + LoRA
-```bash
-# 1) Build dataset
-npm run generate
-npm run generate:new:tom
-
-# 2) Train LoRA via ComfyUI TrainLoraNode
-npm run train
-
-# 3) Generate stills / video with trained LoRA
-npm run gen:test
-npm run video:test
-npm run scene:test
-```
-
-Edit `character.json` and `train-config.json` (especially `comfyRoot`) before training.
+Outputs: `batches/`

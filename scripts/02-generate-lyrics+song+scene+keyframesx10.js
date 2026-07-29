@@ -1,5 +1,5 @@
 /**
- * Family nursery pipeline (Tom dad + Sasha mom + Bibi toddler):
+ * Family nursery pipeline (Tom dad + Sasha mom + Adam toddler boy):
  *   1) Ensure character keyframes exist (plain gray background)
  *   2) Ensure empty scene stills exist (home / lawn / kitchen / bedroom / dining)
  *   3) For each song: Qwen lyrics → ACE song → Qwen scene/actions → keyframes
@@ -14,7 +14,7 @@
  *       scenes/            song-specific scene copies + actions.json
  *       keyframes/         character action stills (plain bg)
  *
- * Character defs live in characters/ (does NOT touch root character.json).
+ * Character defs live in characters/ (single JSON per character in characters/).
  *
  * Run:
  *   node scripts/02-generate-lyrics+song+scene+keyframesx10.js
@@ -41,7 +41,7 @@ import {
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, "..");
-const CHAR_PATH = join(ROOT, "character.json");
+const CHAR_PATH = join(ROOT, "characters", "tomchr.json");
 const CHARACTERS_DIR = join(ROOT, "characters");
 const SCENES_DIR = join(ROOT, "scenes");
 const ACE_ROOT =
@@ -263,7 +263,7 @@ const QWEN_SCENES_PROMPT = `You plan simple preschool music-video beats for a fa
 Characters (use only these names):
 - Tom = dad
 - Sasha = mom
-- Bibi = toddler
+- Adam = toddler boy
 
 Allowed locations (use only these ids):
 {{LOCATIONS}}
@@ -278,7 +278,7 @@ Create 6 to 8 beats that follow the song from intro to outro.
 
 Rules:
 - Every beat uses 1 location from the allowed list.
-- Every beat names 1 to 3 characters from Tom / Sasha / Bibi.
+- Every beat names 1 to 3 characters from Tom / Sasha / Adam.
 - Actions must be preschool-safe, warm, clear, and easy to draw.
 - Prefer family moments: helping, playing, hugging, cleaning, cooking, bedtime, outdoor play.
 - Keep backgrounds PLAIN in character action descriptions (no busy rooms on the character plate).
@@ -291,8 +291,8 @@ OUTPUT EXACTLY valid JSON (no markdown fences):
       "id": "01_intro",
       "location": "kitchen",
       "section": "Intro",
-      "characters": ["Tom", "Bibi"],
-      "action": "Tom kneels while Bibi claps happily",
+      "characters": ["Tom", "Adam"],
+      "action": "Tom kneels while Adam claps happily",
       "scene_note": "empty plain kitchen waiting for family",
       "keyframes": [
         {
@@ -301,7 +301,7 @@ OUTPUT EXACTLY valid JSON (no markdown fences):
           "prompt_extra": "kneeling to toddler height"
         },
         {
-          "character": "Bibi",
+          "character": "Adam",
           "pose": "standing, tiny hands clapping, front view",
           "prompt_extra": "clapping happily"
         }
@@ -389,7 +389,7 @@ async function loadJson(path) {
 }
 
 async function loadFamilyCast() {
-  const ids = ["tom", "sasha", "bibi"];
+  const ids = ["tom", "sasha", "adam"];
   const cast = {};
   for (const id of ids) {
     cast[id] = await loadJson(join(CHARACTERS_DIR, `${id}.json`));
@@ -473,7 +473,7 @@ function parseBeatsJson(raw, allowedLocations) {
     }
     const characters = (b.characters || [])
       .map((c) => String(c).trim())
-      .filter((c) => /^(tom|sasha|bibi)$/i.test(c))
+      .filter((c) => /^(tom|sasha|adam)$/i.test(c))
       .map((c) => c[0].toUpperCase() + c.slice(1).toLowerCase());
     if (characters.length === 0) {
       throw new Error(`Beat ${i + 1} has no valid characters`);
@@ -638,7 +638,7 @@ async function ensureCharacters(comfyUrl, cfgRoot, cast, outDir) {
   for (const char of Object.values(cast)) {
     const charDir = join(outDir, char.id);
     await mkdir(charDir, { recursive: true });
-    await writeFile(join(charDir, "character.json"), JSON.stringify(char, null, 2));
+    // Single source of truth is characters/<id>.json — do not duplicate into the asset folder.
     const cfg = comfyCfg(cfgRoot, {
       width: SETTINGS.charWidth,
       height: SETTINGS.charHeight,
@@ -801,7 +801,7 @@ async function main() {
   await mkdir(sharedCharsDir, { recursive: true });
   await mkdir(sharedScenesDir, { recursive: true });
 
-  console.log("Family nursery pipeline — Tom / Sasha / Bibi");
+  console.log("Family nursery pipeline — Tom / Sasha / Adam");
   console.log(`batch: ${batchDir}`);
 
   try {

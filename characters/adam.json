@@ -1,0 +1,194 @@
+{
+  "id": "adam",
+  "name": "Adam",
+  "role": "toddler",
+  "trigger": "adamboy",
+  "age": "toddler boy, about 2 years old",
+  "comfyUrl": "http://127.0.0.1:8188",
+  "checkpoint": "DreamShaper_8_pruned.safetensors",
+  "seed": 999301,
+  "width": 512,
+  "height": 768,
+  "steps": 28,
+  "cfg": 7,
+  "sampler": "dpmpp_2m",
+  "scheduler": "karras",
+  "faceIdWeight": 0.75,
+  "faceIdWeightV2": 0.75,
+  "openPoseStrength": 0.92,
+  "openImages": true,
+  "styleTag": "slim toddler boy cartoon proportions, male child only",
+  "appearance": "cute cartoon toddler BOY named Adam, male child only, about 2 years old, clearly masculine little boy face, short messy light brown boy hair with bangs, big brown eyes, small nose, gentle boyish smile, fair skin, slim toddler boy build, not fat, not chubby, not overweight, large head relative to body, short limbs, small hands and feet",
+  "outfit": "same exact plain solid mint green short-sleeve crew-neck t-shirt with no pocket no logo no stripes, same exact solid navy blue long toddler pants covering full legs not jeans not denim, same exact plain white toddler sneakers with white laces always on both feet, always wearing pants and shoes, never shorts, never bare legs, never bare feet, hands empty at sides never in pockets, no clothing changes, no accessories, no hairstyle changes, identical outfit every image",
+  "negative": "girl, female, woman, feminine, androgynous, sister, daughter, female toddler, female child, long hair, pigtails, hair bow, dress, skirt, pink, makeup, lipstick, eyelashes heavy, fat, obese, overweight, chubby, pudgy, bloated, double chin, thick neck, huge belly, round belly, muffintop, shorts, bare legs, bare feet, sandals, diaper only, jeans, denim, cuffed pants, shirt pocket, logo, stripe on shirt, mint green shoes, colored sneakers, hands in pockets, headless, no head, no face, head cropped out, deformed, mutation, mutated, bad anatomy, bad proportions, extra limbs, missing limbs, fused fingers, too many fingers, malformed hands, malformed feet, twisted body, broken limbs, photo, photorealistic, 3d render, pixar, disney 3d, teen, adult, tall child, long legs, clothing change, different outfit, hat, text, watermark, blurry, duplicate, twin, two people, character sheet, collage, grid, tomchr, sashamom, bibibaby",
+  "keyframes": [
+    {
+      "id": "front_stand",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing with toddler stance, arms relaxed at sides, feet slightly apart"
+    },
+    {
+      "id": "front_wave",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, tiny right arm raised waving hello, left arm at side"
+    },
+    {
+      "id": "front_clap",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, tiny hands clapping together happily"
+    },
+    {
+      "id": "bust_smile",
+      "angle": "front view bust portrait, looking at camera",
+      "pose": "happy boyish toddler smile, shoulders visible, shoulders visible, rosy cheeks"
+    }
+  ],
+  "shots": [
+    {
+      "id": "01_front_stand",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing with slim toddler boy stance, arms relaxed at sides, feet slightly apart, oversized head, short legs",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, front view, toddler"
+    },
+    {
+      "id": "02_side_stand",
+      "angleKey": "side_left",
+      "angle": "strict left profile side view, 90 degrees, body and face both facing left, natural neck, only one eye and one ear visible, nose pointing left, NOT facing camera, NOT twisting head toward camera",
+      "pose": "standing with slim toddler boy stance, arms at sides, head aligned with torso",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, left profile, toddler",
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, twisted neck, looking over shoulder, eye contact"
+    },
+    {
+      "id": "03_threequarter_stand",
+      "angleKey": "threequarter_left",
+      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body looking left-forward, natural neck alignment, NOT facing camera, NOT twisting head toward camera",
+      "pose": "standing with slim toddler boy stance, arms at sides, oversized head, short legs",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, three-quarter left, toddler",
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, twisted neck, looking over shoulder, straight-on portrait, eye contact"
+    },
+    {
+      "id": "04_sitting",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "toddler sitting on the floor, knees bent, short legs, tiny hands resting on thighs, oversized head, exactly two clear legs",
+      "poseKey": "sit",
+      "expression": "neutral",
+      "captionExtra": "sitting, front view, toddler",
+      "extraNegative": "ghost legs, double legs, fused legs, standing, long legs"
+    },
+    {
+      "id": "05_crawling",
+      "angleKey": "threequarter_right",
+      "angle": "three-quarter view from the right, body turned toward right, head facing body direction, NOT looking at camera",
+      "pose": "toddler crawling on all fours, hands and knees on floor, oversized head, short limbs, toddler crawl",
+      "poseKey": "crawl",
+      "expression": "neutral",
+      "captionExtra": "crawling, toddler",
+      "extraNegative": "standing upright, long legs, adult crawl pose, ghost limbs"
+    },
+    {
+      "id": "06_walking",
+      "angleKey": "threequarter_right",
+      "angle": "three-quarter view from the right, body turned 40 degrees to the right, face turned with body, NOT facing camera",
+      "pose": "toddler walking mid-stride, left leg forward, tiny arms swinging, short legs, oversized head, exactly two legs only",
+      "poseKey": "walk",
+      "expression": "neutral",
+      "captionExtra": "walking, three-quarter right, toddler",
+      "extraNegative": "front view, facing camera, ghost legs, double legs, extra legs, long legs, eye contact"
+    },
+    {
+      "id": "07_hands_up",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing toddler boy, both tiny arms raised high above head, happy reach, short legs, oversized head",
+      "poseKey": "hands_up",
+      "expression": "happy",
+      "captionExtra": "hands up, front view, toddler"
+    },
+    {
+      "id": "08_pointing",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, tiny right arm extended pointing forward, left arm at side, toddler proportions",
+      "poseKey": "point",
+      "expression": "neutral",
+      "captionExtra": "pointing, front view, toddler"
+    },
+    {
+      "id": "09_waving",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, tiny right arm raised waving hello, left arm at side, slim toddler boy stance",
+      "poseKey": "wave",
+      "expression": "happy",
+      "captionExtra": "waving, front view, toddler"
+    },
+    {
+      "id": "10_happy_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "happy toddler boy smile, rosy cheeks, short boy bangs visible, shoulders visible",
+      "poseKey": "bust",
+      "expression": "happy",
+      "captionExtra": "happy expression, close face, toddler",
+      "bust": true
+    },
+    {
+      "id": "11_sad_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "sad toddler boy expression, downturned mouth, big watery eyes, same face identity, shoulders visible",
+      "poseKey": "bust",
+      "expression": "sad",
+      "captionExtra": "sad expression, close face, toddler",
+      "bust": true
+    },
+    {
+      "id": "12_surprised_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "surprised toddler boy expression, round open mouth, wide eyes, same face identity, shoulders visible",
+      "poseKey": "bust",
+      "expression": "surprised",
+      "captionExtra": "surprised expression, close face, toddler",
+      "bust": true
+    },
+    {
+      "id": "13_close_face",
+      "angleKey": "front",
+      "angle": "front view tight close-up face portrait, looking at camera",
+      "pose": "neutral friendly toddler boy face, clear eyes nose mouth hair silhouette, shoulders barely visible",
+      "poseKey": "bust",
+      "expression": "neutral",
+      "captionExtra": "close face, portrait, toddler",
+      "bust": true
+    },
+    {
+      "id": "14_side_walk",
+      "angleKey": "side_right",
+      "angle": "strict right profile side view, 90 degrees, body and face both facing right, natural neck, only one eye and one ear visible, nose pointing right, NOT facing camera",
+      "pose": "toddler walking mid-stride, tiny arms swinging, short legs, oversized head, head aligned with torso",
+      "poseKey": "walk",
+      "expression": "neutral",
+      "captionExtra": "walking, right profile, toddler",
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, ghost legs, double legs, eye contact"
+    },
+    {
+      "id": "15_threequarter_wave",
+      "angleKey": "threequarter_left",
+      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body, NOT facing camera straight on",
+      "pose": "standing, tiny left arm raised waving, right arm at side, toddler proportions",
+      "poseKey": "wave",
+      "expression": "happy",
+      "captionExtra": "waving, three-quarter left, toddler",
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, straight-on portrait, eye contact"
+    }
+  ]
+}

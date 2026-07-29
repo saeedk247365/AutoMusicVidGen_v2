@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
  */
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const CHAR_PATH = join(ROOT, "character.json");
+const CHAR_PATH = join(ROOT, "characters", "tomchr.json");
 const OUT_DIR = join(ROOT, "videos");
 const COMFY_ROOT =
   "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI";
