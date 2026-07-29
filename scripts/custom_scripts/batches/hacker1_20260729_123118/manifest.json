@@ -1,0 +1,42 @@
+{
+  "name": "hacker1",
+  "count": 10,
+  "duration": 180,
+  "bpm": 142,
+  "steps": 40,
+  "keyscale": null,
+  "caption": "Create an original modern technical rap song called \"ROOTKIT.\"\n\nStyle:\n- Original lyrical style.\n- Fast, high-energy delivery.\n- Dense internal rhyme schemes.\n- Multi-syllable rhymes.\n- Clever wordplay and punchlines.\n- Rapid flow changes.\n- Aggressive confidence.\n- Catchy melodic hook.\n- High replay value.\n\nTheme:\nCybersecurity is used as a metaphor for hidden parts of the human mind.\n\nRootkits represent buried trauma.\nBootkits represent beliefs installed before we can think for ourselves.\nExploits represent moments of weakness.\nEncryption represents secrets.\nFirewalls represent emotional defenses.\n\nThe verses should constantly build momentum with layered metaphors, clever comparisons, and unexpected punchlines.\n\nThe chorus should be huge, memorable, and easy to shout.\n\nAvoid generic hacker clichés.\nAvoid explaining technical concepts.\nFocus on storytelling, psychology, identity, control, paranoia, resilience, and hidden truth.\n\nThe result should feel like a modern blockbuster rap record with intricate writing, energetic flows, and an original voice.",
+  "lyricsPath": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\hacker1_20260729_123118\\hacker1_lyrics.txt",
+  "takes": [
+    {
+      "index": 1,
+      "seed": 1222695820,
+      "file": "01_seed1222695820.mp3",
+      "ok": true
+    },
+    {
+      "index": 2,
+      "seed": 1222695821,
+      "file": "02_seed1222695821.mp3",
+      "ok": true
+    },
+    {
+      "index": 3,
+      "seed": 1222695822,
+      "file": "03_seed1222695822.mp3",
+      "ok": true
+    },
+    {
+      "index": 4,
+      "seed": 1222695823,
+      "file": "04_seed1222695823.mp3",
+      "ok": true
+    },
+    {
+      "index": 5,
+      "seed": 1222695824,
+      "file": "05_seed1222695824.mp3",
+      "ok": true
+    }
+  ]
+}

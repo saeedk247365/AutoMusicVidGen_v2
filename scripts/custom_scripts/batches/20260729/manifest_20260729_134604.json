@@ -1,0 +1,47 @@
+{
+  "runId": "20260729_134604",
+  "batchDir": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\20260729",
+  "count": 10,
+  "cast": [
+    "tom",
+    "sasha",
+    "bibi"
+  ],
+  "sceneIds": [
+    "home",
+    "lawn",
+    "kitchen",
+    "bedroom",
+    "dining_room"
+  ],
+  "songs": [
+    {
+      "index": 1,
+      "theme": "family",
+      "style": "gentle acoustic",
+      "eduFocus": "listening",
+      "movement": "spin",
+      "ok": true,
+      "title": "Spin and Listen",
+      "slug": "spin-and-listen",
+      "songDir": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\20260729\\spin-and-listen",
+      "seed": 1252103866,
+      "file": "spin-and-listen.mp3",
+      "beats": 8
+    },
+    {
+      "index": 2,
+      "theme": "rainy day",
+      "style": "soft orchestral",
+      "eduFocus": "counting",
+      "movement": "wave",
+      "ok": true,
+      "title": "Splish Splash Count",
+      "slug": "splish-splash-count",
+      "songDir": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\20260729\\splish-splash-count",
+      "seed": 731890706,
+      "file": "splish-splash-count.mp3",
+      "beats": 8
+    }
+  ]
+}

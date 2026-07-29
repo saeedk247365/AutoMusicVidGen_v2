@@ -1,0 +1,34 @@
+{
+  "id": "tom",
+  "name": "Tom",
+  "role": "dad",
+  "trigger": "tomdad",
+  "age": "adult father, about 32 years old",
+  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even studio lighting, plain solid light gray background, not realistic",
+  "appearance": "cute cartoon adult dad named Tom, masculine face, short messy brown hair with bangs, big expressive brown eyes, small nose, warm friendly smile, light stubble optional none preferred clean shaven, fair skin, slim athletic dad build, average adult height",
+  "outfit": "ALWAYS identical outfit: solid navy blue short-sleeve crew-neck t-shirt (no logo, no raglan, no stripes), solid navy blue long pants, plain white sneakers with white laces, empty hands",
+  "negative": "photo, photorealistic, 3d render, pixar, disney 3d, child, toddler, baby, teen, feminine, androgynous, girl, woman, makeup, lipstick, beard heavy, mask, sunglasses, hat, logo, print, holding object, dark background, room interior, furniture, text, watermark, blurry, duplicate, twin, two people, character sheet, collage, grid",
+  "seed": 777101,
+  "keyframes": [
+    {
+      "id": "front_stand",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing straight, arms relaxed at sides, feet slightly apart"
+    },
+    {
+      "id": "front_wave",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, right arm raised waving hello, left arm at side"
+    },
+    {
+      "id": "front_kneel",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "kneeling down to toddler height, gentle smile, arms open welcoming"
+    },
+    {
+      "id": "bust_smile",
+      "angle": "front view bust portrait, looking at camera",
+      "pose": "friendly dad smile, shoulders visible, warm expression"
+    }
+  ]
+}

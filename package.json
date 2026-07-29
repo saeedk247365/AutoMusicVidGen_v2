@@ -1,0 +1,12 @@
+﻿{
+  "name": "auto-music-vid-gen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "song": "node scripts/custom_scripts/00-generate-song.js",
+    "nursery": "node scripts/custom_scripts/01-generate-lyrics+songx10.js",
+    "family": "node scripts/custom_scripts/02-generate-lyrics+song+scene+keyframesx10.js",
+    "family:chars": "node scripts/custom_scripts/02-generate-lyrics+song+scene+keyframesx10.js --chars-only"
+  }
+}

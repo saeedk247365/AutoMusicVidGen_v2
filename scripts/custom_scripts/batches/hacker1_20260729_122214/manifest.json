@@ -1,0 +1,54 @@
+{
+  "name": "hacker1",
+  "count": 10,
+  "duration": 180,
+  "bpm": 142,
+  "steps": 40,
+  "keyscale": null,
+  "caption": "Create an original modern technical rap song called \"ROOTKIT.\"\n\nStyle:\n- Original lyrical style.\n- Fast, high-energy delivery.\n- Dense internal rhyme schemes.\n- Multi-syllable rhymes.\n- Clever wordplay and punchlines.\n- Rapid flow changes.\n- Aggressive confidence.\n- Catchy melodic hook.\n- Modern trap production with cinematic synths.\n- Heavy 808s and hard drums.\n- Dark cyberpunk atmosphere.\n- High replay value.\n\nTheme:\nCybersecurity is used as a metaphor for hidden parts of the human mind.\n\nRootkits represent buried trauma.\nBootkits represent beliefs installed before we can think for ourselves.\nExploits represent moments of weakness.\nEncryption represents secrets.\nFirewalls represent emotional defenses.\n\nThe verses should constantly build momentum with layered metaphors, clever comparisons, and unexpected punchlines.\n\nThe chorus should be huge, memorable, and easy to shout.\n\nAvoid generic hacker clichés.\nAvoid explaining technical concepts.\nFocus on storytelling, psychology, identity, control, paranoia, resilience, and hidden truth.\n\nThe result should feel like a modern blockbuster rap record with intricate writing, energetic flows, and an original voice.",
+  "lyricsPath": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\hacker1_20260729_122214\\hacker1_lyrics.txt",
+  "takes": [
+    {
+      "index": 1,
+      "seed": 325627436,
+      "file": "01_seed325627436.mp3",
+      "ok": true
+    },
+    {
+      "index": 2,
+      "seed": 325627437,
+      "file": "02_seed325627437.mp3",
+      "ok": true
+    },
+    {
+      "index": 3,
+      "seed": 325627438,
+      "file": "03_seed325627438.mp3",
+      "ok": true
+    },
+    {
+      "index": 4,
+      "seed": 325627439,
+      "file": "04_seed325627439.mp3",
+      "ok": true
+    },
+    {
+      "index": 5,
+      "seed": 325627440,
+      "file": "05_seed325627440.mp3",
+      "ok": true
+    },
+    {
+      "index": 6,
+      "seed": 325627441,
+      "file": "06_seed325627441.mp3",
+      "ok": true
+    },
+    {
+      "index": 7,
+      "seed": 325627442,
+      "file": "07_seed325627442.mp3",
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "little_dream_parade",
+  "count": 10,
+  "duration": 180,
+  "bpm": 115,
+  "steps": 30,
+  "keyscale": null,
+  "caption": "Create an original nursery song called \"Little Dream Parade. Write an approximately 150-second song. After the final chorus, include an 8–12 second instrumental outro. End naturally with the vocals finishing before the music fades.\"\n\nStyle:\n- Warm, joyful, and magical.\n- Ages 2–6.\n- Gentle, memorable melody.\n- Easy-to-sing lyrics.\n- Soft acoustic instruments with light piano, ukulele, bells, and claps.\n- Children's choir supporting the chorus.\n- Male or female lead with a warm, friendly voice.\n- Moderate tempo (110–120 BPM).\n- Every verse introduces a new friendly character.\n- Encourage imagination, kindness, movement, and curiosity.\n- Avoid loud rock or club sounds.\n- Make the chorus unforgettable after hearing it once.\n- Original composition only.",
+  "lyricsPath": "E:\\DeploymentProduction\\CartoonLoRATrainer\\scripts\\custom_scripts\\batches\\little_dream_parade_20260729_124330\\little_dream_parade_lyrics.txt",
+  "takes": [
+    {
+      "index": 1,
+      "seed": 454494017,
+      "file": "01_seed454494017.mp3",
+      "ok": true
+    },
+    {
+      "index": 2,
+      "seed": 454494018,
+      "file": "02_seed454494018.mp3",
+      "ok": true
+    },
+    {
+      "index": 3,
+      "seed": 454494019,
+      "file": "03_seed454494019.mp3",
+      "ok": true
+    },
+    {
+      "index": 4,
+      "seed": 454494020,
+      "file": "04_seed454494020.mp3",
+      "ok": true
+    },
+    {
+      "index": 5,
+      "seed": 454494021,
+      "file": "05_seed454494021.mp3",
+      "ok": true
+    },
+    {
+      "index": 6,
+      "seed": 454494022,
+      "file": "06_seed454494022.mp3",
+      "ok": true
+    },
+    {
+      "index": 7,
+      "seed": 454494023,
+      "file": "07_seed454494023.mp3",
+      "ok": true
+    }
+  ]
+}
