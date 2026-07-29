@@ -4,9 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "song": "node scripts/custom_scripts/00-generate-song.js",
-    "nursery": "node scripts/custom_scripts/01-generate-lyrics+songx10.js",
-    "family": "node scripts/custom_scripts/02-generate-lyrics+song+scene+keyframesx10.js",
-    "family:chars": "node scripts/custom_scripts/02-generate-lyrics+song+scene+keyframesx10.js --chars-only"
+    "song": "node scripts/00-generate-song.js",
+    "nursery": "node scripts/01-generate-lyrics+songx10.js",
+    "family": "node scripts/02-generate-lyrics+song+scene+keyframesx10.js",
+    "family:chars": "node scripts/02-generate-lyrics+song+scene+keyframesx10.js --chars-only",
+
+    "generate": "node scripts/generate-dataset.js",
+    "generate:face": "node scripts/generate-dataset.js --face-only",
+    "generate:shots": "node scripts/generate-dataset.js --shots-only",
+    "generate:tom": "node scripts/generate-dataset.js --character character.json --out dataset",
+    "generate:pip": "node scripts/generate-dataset.js --character characters/pipchr.json --out dataset/pipchr",
+    "generate:new": "node scripts/generate-dataset-new.js",
+    "generate:new:tom": "node scripts/generate-dataset-new.js --character character.json --out dataset/tom-v2 --lora tomchr_character_v1.safetensors --denoise 0.55 --openpose 1.0",
+    "generate:new:pip": "node scripts/generate-dataset-new.js --character characters/pipchr.json --out dataset/pipchr-v2 --denoise 0.55 --openpose 1.0",
+
+    "train": "node scripts/train-lora.js",
+    "train:sync": "node scripts/train-lora.js --sync-only",
+    "train:dry": "node scripts/train-lora.js --dry-run",
+    "train:pip": "node scripts/train-lora.js --train-config train-config-pipchr.json --character characters/pipchr.json",
+
+    "gen": "node scripts/generate-image-with-lora.js",
+    "gen:test": "node scripts/generate-image-with-lora.js --test",
+    "video": "node scripts/generate-video-with-lora.js",
+    "video:test": "node scripts/generate-video-with-lora.js --test",
+    "scene": "node scripts/generate-scene-video.js",
+    "scene:test": "node scripts/generate-scene-video.js --test --scene park",
+    "scene:list": "node scripts/generate-scene-video.js --list-scenes"
   }
 }

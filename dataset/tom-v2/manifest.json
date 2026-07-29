@@ -1,0 +1,201 @@
+{
+  "character": "Tom",
+  "trigger": "tomchr",
+  "pipeline": "identity-first-persistent-state",
+  "philosophy": "Identity is preserved. Pose is edited.",
+  "identityBackend": "faceid",
+  "lora": "tomchr_character_v1.safetensors",
+  "baseDenoise": 0.55,
+  "denoiseBands": {
+    "easy": 0.55,
+    "medium": 0.72,
+    "hard": 0.82,
+    "extreme": [
+      0.88,
+      0.95
+    ]
+  },
+  "chaining": false,
+  "keyframeRefresh": true,
+  "faceIdPolicy": "master | controlled rebuilds | optional --aux-faceid",
+  "keyframes": [
+    {
+      "id": "front",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left45",
+      "angleKey": "threequarter_left",
+      "yaw": -55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right45",
+      "angleKey": "threequarter_right",
+      "yaw": 55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left_profile",
+      "angleKey": "side_left",
+      "yaw": -90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right_profile",
+      "angleKey": "side_right",
+      "yaw": 90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "back",
+      "angleKey": "threequarter_back_left",
+      "yaw": -145,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "smile",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "smile",
+      "bust": false
+    },
+    {
+      "id": "neutral",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": true
+    }
+  ],
+  "shots": [
+    {
+      "id": "01_front_stand",
+      "source": "keyframe:front",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": "front"
+    },
+    {
+      "id": "02_front_wave",
+      "source": "keyframe:front",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "03_front_hip",
+      "source": "keyframe:front",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "04_threequarter_left_stand",
+      "source": "keyframe:left45",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": "left45"
+    },
+    {
+      "id": "05_threequarter_right_walk",
+      "source": "keyframe:right45",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 55,
+      "targetYaw": 55,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "06_side_left_stand",
+      "source": "keyframe:left_profile",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -90,
+      "targetYaw": -90,
+      "refreshedKeyframe": "left_profile"
+    },
+    {
+      "id": "07_side_right_walk",
+      "source": "keyframe:right_profile",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 90,
+      "targetYaw": 90,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "08_threequarter_back",
+      "source": "keyframe:back",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -145,
+      "targetYaw": -145,
+      "refreshedKeyframe": "back"
+    },
+    {
+      "id": "09_front_sit",
+      "source": "keyframe:front",
+      "denoise": 1,
+      "rebuild": true,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "10_front_point",
+      "source": "keyframe:front",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "11_threequarter_left_wave",
+      "source": "keyframe:left45",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": null
+    },
+    {
+      "id": "12_bust_front",
+      "source": "keyframe:neutral",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": "neutral"
+    }
+  ]
+}

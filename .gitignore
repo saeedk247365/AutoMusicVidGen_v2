@@ -2,3 +2,8 @@
 .DS_Store
 *.log
 audio/_ace_work/
+**/_ace_work/
+loras/
+generations/
+videos/
+dataset/**/poses/
