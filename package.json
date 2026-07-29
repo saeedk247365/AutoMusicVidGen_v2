@@ -13,6 +13,7 @@
     "generate:face": "node scripts/generate-dataset.js --face-only",
     "generate:shots": "node scripts/generate-dataset.js --shots-only",
     "generate:tom": "node scripts/generate-dataset.js --character character.json --out dataset",
+    "generate:bibi": "node scripts/generate-dataset.js --character characters/bibichr.json --out dataset/bibi",
     "generate:pip": "node scripts/generate-dataset.js --character characters/pipchr.json --out dataset/pipchr",
     "generate:new": "node scripts/generate-dataset-new.js",
     "generate:new:tom": "node scripts/generate-dataset-new.js --character character.json --out dataset/tom-v2 --lora tomchr_character_v1.safetensors --denoise 0.55 --openpose 1.0",
