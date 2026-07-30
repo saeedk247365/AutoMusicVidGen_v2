@@ -1,11 +1,14 @@
 import { mkdir, readFile, writeFile, copyFile, unlink } from "fs/promises";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
+import { promisify } from "util";
 import { platform } from "os";
-import { randomUUID } from "crypto";
+import { randomUUID, randomInt } from "crypto";
 import { buildOpenPosePng, ANGLE_YAW } from "../lib/openpose-maps.js";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Identity-first LoRA dataset generator.
@@ -22,6 +25,8 @@ import { buildOpenPosePng, ANGLE_YAW } from "../lib/openpose-maps.js";
  *   B) --set-master <image>     use an existing still as master (skips invent)
  *   C) --master-only            stop after master for visual review
  *   D) --approve-master         stamp master_approved.json after you like it
+ *   Master invent seed is RANDOM each candidate (optional --seed to pin one).
+ *   After approve, keyframes/shots use character JSON seed as usual.
  *   Keyframes/shots require an approved master (unless --skip-approval).
  *
  * Phase 2 ? Canonical Keyframes
@@ -32,10 +37,11 @@ import { buildOpenPosePng, ANGLE_YAW } from "../lib/openpose-maps.js";
  *   Closest keyframe (yaw, pose, expression, bust) ? img2img + OpenPose.
  *   Identity from latent. OpenPose controls pose only.
  *
- * Adaptive denoise: easy ~0.55 | medium ~0.72 | hard ~0.82 | extreme ~0.88?0.95
- * Controlled rebuilds (sit, front?rear, front?strict profile): EmptyLatent + denoise=1 + strong FaceID.
- * FaceID source = real --ref (or approved master), never a noise-invented face lock.
- * Optional --chain; keyframe refresh (disable: --no-keyframe-refresh).
+ * Adaptive denoise: easy ~0.55 | medium ~0.72 | hard ~0.82
+ * Rebuilds (sit, crawl, rear, front→strict profile): EmptyLatent + denoise=1 + FaceID.
+ * FaceID also on img2img when denoise >= 0.65 (not at ~0.55).
+ * Keyframe refresh is OPT-IN (--keyframe-refresh). Default: master authority stays fixed.
+ * Identity gate: InsightFace similarity vs master after each keyframe/shot (skip if no face).
  */
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,6 +63,9 @@ const POSES_DIR = join(OUT_DIR, "poses");
 const KEYFRAMES_DIR = join(OUT_DIR, "keyframes");
 const MASTER_PATH = join(OUT_DIR, "master_identity.png");
 const MASTER_APPROVED_PATH = join(OUT_DIR, "master_approved.json");
+const MASTER_SEED_PATH = join(OUT_DIR, "master_seed.json");
+/** Optional fixed invent seed for a master candidate; omit = fresh random each run. */
+const SEED_FLAG = flag("--seed", null);
 const FACE_LOCK = join(OUT_DIR, "face_lock.png");
 
 const MASTER_ONLY = has("--master-only");
@@ -69,10 +78,20 @@ const FORCE = has("--force");
 const FORCE_KEYFRAMES = has("--force-keyframes") || FORCE;
 const CHAIN = has("--chain");
 const AUX_FACEID = has("--aux-faceid");
-const NO_KEYFRAME_REFRESH = has("--no-keyframe-refresh");
+/** Opt-in only — default bank is master → fixed keyframes → shots (no shot→bank pollution). */
+const KEYFRAME_REFRESH = has("--keyframe-refresh");
+/** Legacy alias: --no-keyframe-refresh is now the default (ignored). */
+const SKIP_IDENTITY_GATE = has("--skip-identity-gate");
+const IDENTITY_THRESHOLD = Number(flag("--identity-threshold", "0.40"));
+const IDENTITY_RETRIES = Math.max(1, Number(flag("--identity-retries", "3")));
 /** Legacy: invent face_lock from EmptyLatent+text. Causes identity drift ? avoid. */
 const BOOTSTRAP_FROM_TEXT = has("--bootstrap-from-text");
 const REF_FLAG = flag("--ref", null);
+const COMFY_ROOT =
+  flag("--comfy-root", null) ||
+  "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI";
+const COMFY_PYTHON = join(COMFY_ROOT, "venv", "Scripts", "python.exe");
+const IDENTITY_SCRIPT = join(ROOT, "scripts", "identity-similarity.py");
 
 /**
  * --master-only keeps inventing a new master until you --approve-master.
@@ -322,16 +341,19 @@ function denoiseForEdit(shot, source, base = BASE_DENOISE) {
   else if (difficulty >= 1) d = clamp(Math.max(base, 0.62), 0.55, 0.72);
   else d = clamp(base, 0.5, 0.58);
 
-  // Limb replacements need enough denoise to erase the source pose's legs/arms
-  if (dstPose === "walk" || dstPose === "sit" || dstPose === "crawl") d = Math.max(d, 0.82);
-  if (dstPose === "wave" || dstPose === "point" || dstPose === "hands_up") d = Math.max(d, 0.72);
+  // Limb / gesture edits: enough denoise to change pose, FaceID anchors identity at >=0.65
+  if (dstPose === "walk") d = clamp(Math.max(d, 0.72), 0.72, 0.78);
+  if (dstPose === "sit" || dstPose === "crawl") d = Math.max(d, 0.82);
+  if (dstPose === "wave" || dstPose === "point" || dstPose === "hands_up") {
+    d = clamp(Math.max(d, 0.7), 0.7, 0.75);
+  }
   return clamp(d, 0.5, 0.95);
 }
 
 /**
- * Controlled rebuild ? identity reconstructed from FaceID; OpenPose controls pose.
- * Used only when img2img continuity cannot bridge the edit:
- *   standing ? sitting, front ? rear, front ? strict profile, other large jumps.
+ * Controlled rebuild — EmptyLatent + FaceID. Keep only hard identity/pose breaks:
+ *   sit, crawl, strict rear, front ↔ strict profile.
+ * Do NOT rebuild for front→45, 45→profile, walk, wave, hands_up (img2img + FaceID).
  */
 function needsEmptyLatentRebuild(shot, source) {
   const dstPose = effectivePoseKey(shot);
@@ -348,27 +370,27 @@ function needsEmptyLatentRebuild(shot, source) {
   }
   if (isRearView(dstAngle) && !isRearView(srcAngle)) return true;
   if (isRearView(srcAngle) && !isRearView(dstAngle)) return true;
+  // front → strict profile (and reverse on large yaw jump)
   if (isStrictProfile(dstAngle) && !isStrictProfile(srcAngle) && yawDelta > 25) return true;
   if (isStrictProfile(srcAngle) && !isStrictProfile(dstAngle) && yawDelta > 25) return true;
-  if (yawDelta > 100) return true;
   return false;
 }
 
 /**
  * FaceID policy:
- *   Primary identity = img2img latent continuity.
- *   Secondary = FaceID for master, controlled rebuilds, or --aux-faceid on all shots.
- * Normal img2img shots do NOT inject FaceID (that would rediscover identity from embeddings).
+ *   Primary = img2img latent at low denoise (~0.55).
+ *   FaceID when rebuild, --aux-faceid, or denoise >= 0.65 (identity anchor).
  */
-function shouldUseFaceId(rebuild) {
-  return Boolean(rebuild || AUX_FACEID);
+function shouldUseFaceId(rebuild, denoise = 0) {
+  return Boolean(rebuild || AUX_FACEID || denoise >= 0.65);
 }
 
-/** Stronger FaceID weight on rebuilds / harder aux edits; lighter on easy aux. */
+/** Stronger FaceID weight on rebuilds / harder aux edits; lighter near the 0.65 threshold. */
 function faceIdWeightFor(fromEmptyLatent, denoise) {
-  if (fromEmptyLatent) return 0.85; // controlled rebuild ? strong FaceID
-  if (denoise >= 0.82) return 0.65; // difficult aux edit
-  if (denoise >= 0.72) return 0.5;
+  if (fromEmptyLatent) return 0.85;
+  if (denoise >= 0.82) return 0.75;
+  if (denoise >= 0.72) return 0.65;
+  if (denoise >= 0.65) return 0.5;
   return 0.35;
 }
 
@@ -423,19 +445,61 @@ async function clearMasterApproval(reason) {
   console.log(`  cleared master approval (${reason})`);
 }
 
+/**
+ * Master invent seed: always random per candidate unless --seed is set.
+ * After approval, keyframes/shots keep using character JSON cfg.seed (unchanged).
+ */
+function resolveMasterInventSeed() {
+  if (SEED_FLAG != null && SEED_FLAG !== "") {
+    const n = Number(SEED_FLAG);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(`Invalid --seed: ${SEED_FLAG}`);
+    }
+    return n >>> 0;
+  }
+  return randomInt(0, 2 ** 32);
+}
+
+async function writeMasterSeedRecord(seed, { source = "invent" } = {}) {
+  const rec = {
+    seed,
+    source,
+    at: new Date().toISOString(),
+    masterPath: MASTER_PATH,
+  };
+  await writeFile(MASTER_SEED_PATH, JSON.stringify(rec, null, 2), "utf8");
+  return rec;
+}
+
+function readMasterSeedRecord() {
+  if (!existsSync(MASTER_SEED_PATH)) return null;
+  try {
+    let raw = readFileSync(MASTER_SEED_PATH, "utf8");
+    if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 async function writeMasterApproval({ source = "manual", note = "" } = {}) {
   if (!existsSync(MASTER_PATH)) {
     throw new Error(`Cannot approve ? missing master: ${MASTER_PATH}`);
   }
+  const seedRec = readMasterSeedRecord();
   const stamp = {
     approvedAt: new Date().toISOString(),
     masterPath: MASTER_PATH,
     character: CONFIG_PATH,
     source,
+    masterSeed: seedRec?.seed ?? null,
     note: note || undefined,
   };
   await writeFile(MASTER_APPROVED_PATH, JSON.stringify(stamp, null, 2), "utf8");
   console.log(`  ? master APPROVED ? ${MASTER_APPROVED_PATH}`);
+  if (stamp.masterSeed != null) {
+    console.log(`  locked invent seed=${stamp.masterSeed} (keyframes/shots still use character seed)`);
+  }
   return stamp;
 }
 
@@ -511,16 +575,24 @@ function normalizeShot(shot) {
 const STYLE_LOCK =
   "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even studio lighting, consistent cartoon style";
 
-const BG_GRAY =
-  "plain solid light gray background, empty studio, no furniture, no scenery";
+/** Chroma-key green — captioned so LoRA can drop it at inference; never train scenic rooms. */
+const BG_CHROMA =
+  "plain solid chroma key green background, pure bright green #00FF00 backdrop, empty chroma studio, no furniture, no scenery, no room";
 
-/** ~30% of non-bust shots use a soft scene so LoRA does not bake gray BG into identity. */
-const BG_PASTEL = [
-  "simple soft pastel playground background, gently blurred, character sharp in foreground",
-  "simple soft pastel cartoon bedroom background, gently blurred, character sharp in foreground",
-  "simple soft pastel park background, gently blurred, character sharp in foreground",
-  "simple soft pastel classroom background, gently blurred, character sharp in foreground",
-];
+const BG_CHROMA_CAPTION = "plain solid chroma key green background";
+
+const BG_CHROMA_NEGATIVE =
+  "gray background, white background, beige background, room interior, furniture, kitchen, bedroom, lawn, scenery, gradient background, textured wall, circle backdrop";
+
+/** @deprecated alias — kept so older call sites still resolve */
+const BG_GRAY = BG_CHROMA;
+
+/** Short clothing tokens — SD attention prefers brevity over long rule essays. */
+const OUTFIT_LOCK =
+  "mint green crew neck t-shirt, navy toddler pants, white sneakers, same outfit every image";
+
+const OUTFIT_NEGATIVE =
+  "shorts, bare legs, bare feet, jeans, logo, stripes, different clothes, clothing change, colored sneakers";
 
 const STYLE_NEGATIVE =
   "photo, photorealistic, realistic skin texture, detailed pores, hyperrealistic, cinematic lighting, dramatic lighting, volumetric lighting, 3d render, octane, unreal engine";
@@ -545,25 +617,22 @@ function isBoy(cfg) {
   return /\bboy\b|male|adamboy|tomchr/i.test(blob);
 }
 
-function hashId(s) {
-  let h = 0;
-  for (const c of String(s || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return h;
-}
-
-/** 70% gray studio / 30% simple pastel scene. Bust/close-face stay gray for identity. */
+/** Solid chroma-green identity plates only — scenes belong in animation compositing, not LoRA training. */
 function backgroundForShot(shot) {
   if (shot.background) return shot.background;
-  if (shot.bust || /close_face|bust|expression/i.test(shot.id || "")) return BG_GRAY;
-  const h = hashId(shot.id);
-  if (h % 10 < 7) return BG_GRAY;
-  return BG_PASTEL[h % BG_PASTEL.length];
+  return BG_CHROMA;
+}
+
+function outfitPositive(cfg) {
+  // Prefer short global lock; character outfit only if it is already short
+  const o = (cfg.outfit || "").trim();
+  if (o && o.length <= 120) return o;
+  return OUTFIT_LOCK;
 }
 
 function styleParts(cfg, { rebuild = false } = {}) {
   const parts = [STYLE_LOCK];
   if (cfg.styleTag) parts.push(cfg.styleTag);
-  // Legacy: only keep cfg.style if it is NOT a duplicated full STYLE_LOCK blob
   else if (cfg.style && !/flat 2D anime cartoon illustration/i.test(cfg.style)) {
     parts.push(cfg.style);
   }
@@ -612,17 +681,19 @@ function characterPrompt(cfg, shot, { rebuild = false } = {}) {
   const expr = expressionPrompt(shot);
   const bg = backgroundForShot(shot);
   const style = styleParts(cfg, { rebuild }).join(", ");
+  const outfit = outfitPositive(cfg);
 
   if (shot.bust) {
     return [
       cfg.trigger,
       cfg.appearance,
-      cfg.outfit,
+      outfit,
       shot.angle,
       shot.pose,
       expr,
       "close-up bust portrait, head and shoulders only, single character, same exact identity",
       anatomyPromptLock(shot, cfg),
+      "clothing colors distinct from pure chroma key green backdrop",
       bg,
       style,
     ]
@@ -632,14 +703,15 @@ function characterPrompt(cfg, shot, { rebuild = false } = {}) {
   return [
     cfg.trigger,
     cfg.appearance,
-    cfg.outfit,
+    outfit,
     shot.angle,
     shot.pose,
     expr,
     anatomyPromptLock(shot, cfg),
     "same exact character identity, consistent face body proportions hairstyle clothing age",
     "single solitary character only, full body centered, no other faces",
-    "same exact clothing, no outfit changes, no accessories",
+    outfit,
+    "clothing colors distinct from pure chroma key green backdrop",
     bg,
     style,
   ]
@@ -650,8 +722,10 @@ function characterPrompt(cfg, shot, { rebuild = false } = {}) {
 function shotNegative(cfg, shot) {
   return [
     cfg.negative,
+    OUTFIT_NEGATIVE,
     STYLE_NEGATIVE,
     ANATOMY_NEGATIVE,
+    BG_CHROMA_NEGATIVE,
     isToddler(cfg) ? TODDLER_NEGATIVE : null,
     isBoy(cfg) ? BOY_NEGATIVE : null,
     shot.extraNegative,
@@ -661,7 +735,7 @@ function shotNegative(cfg, shot) {
 }
 
 function captionFor(cfg, shot) {
-  return `${cfg.trigger}, ${shot.captionExtra || shot.caption || ""}, ${cfg.appearance}, ${cfg.outfit}`
+  return `${cfg.trigger}, ${shot.captionExtra || shot.caption || ""}, ${cfg.appearance}, ${outfitPositive(cfg)}, ${BG_CHROMA_CAPTION}`
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -816,6 +890,9 @@ function faceLockWorkflow(cfg, loraName, seed = cfg.seed) {
 
 /** PHASE 1 ? master from real FaceID ref (+ OpenPose). Not identity-from-text alone. */
 function masterIdentityWorkflow(cfg, { loraName, poseMapName, faceImageName, backend, seed }) {
+  if (seed == null) {
+    throw new Error("masterIdentityWorkflow requires an explicit invent seed (random per candidate)");
+  }
   const wf = withCheckpointAndOptionalLora(cfg, loraName);
   const prompt = [
     cfg.trigger,
@@ -826,7 +903,7 @@ function masterIdentityWorkflow(cfg, { loraName, poseMapName, faceImageName, bac
     "full body including head and feet, head fully visible, face clearly visible",
     "canonical master identity reference, perfect character consistency",
     "single solitary character only, full body centered",
-    "same exact clothing, no clothing logos, no pockets with prints, no outfit changes, no accessories",
+    OUTFIT_LOCK,
     "hands empty at sides, no hands in pockets",
     BG_GRAY,
     ...styleParts(cfg),
@@ -873,7 +950,7 @@ function masterIdentityWorkflow(cfg, { loraName, poseMapName, faceImageName, bac
   wf["9"] = {
     class_type: "KSampler",
     inputs: {
-      seed: seed ?? cfg.seed + 1,
+      seed,
       steps: cfg.steps,
       cfg: cfg.cfg,
       sampler_name: cfg.sampler,
@@ -1080,7 +1157,7 @@ function selectSource(shot, keyframeBank, lastAccepted = null) {
  * Future shots inherit the improved identity (bank improves over time).
  */
 function findRefreshTarget(shot, keyframeBank) {
-  if (NO_KEYFRAME_REFRESH) return null;
+  if (!KEYFRAME_REFRESH) return null;
   const dstPose = effectivePoseKey(shot);
   const expr = expressionOf(shot);
 
@@ -1129,6 +1206,86 @@ async function uploadPose(cfg, shot, tag) {
   return { posePath, poseName: up.name, poseKey };
 }
 
+/**
+ * InsightFace cosine similarity vs master / face_lock.
+ * Returns { skipped, pass, similarity, reason }.
+ */
+async function checkIdentitySimilarity(candidatePath) {
+  if (SKIP_IDENTITY_GATE) {
+    return { skipped: true, pass: true, similarity: null, reason: "skip_flag" };
+  }
+  const ref = existsSync(FACE_LOCK)
+    ? FACE_LOCK
+    : existsSync(MASTER_PATH)
+      ? MASTER_PATH
+      : null;
+  if (!ref) {
+    return { skipped: true, pass: true, similarity: null, reason: "no_ref" };
+  }
+  if (!existsSync(COMFY_PYTHON) || !existsSync(IDENTITY_SCRIPT)) {
+    console.log("  identity_gate=skipped (Comfy python or helper missing)");
+    return { skipped: true, pass: true, similarity: null, reason: "helper_missing" };
+  }
+  try {
+    const { stdout } = await execFileAsync(
+      COMFY_PYTHON,
+      [IDENTITY_SCRIPT, ref, candidatePath],
+      { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+    );
+    const line = String(stdout || "")
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .pop();
+    const data = JSON.parse(line || "{}");
+    if (!data.ok) {
+      if (data.reason === "no_face") {
+        return {
+          skipped: true,
+          pass: true,
+          similarity: null,
+          reason: "skipped_no_face",
+        };
+      }
+      return {
+        skipped: true,
+        pass: true,
+        similarity: null,
+        reason: data.reason || "gate_error",
+      };
+    }
+    const sim = Number(data.similarity);
+    const pass = sim >= IDENTITY_THRESHOLD;
+    return { skipped: false, pass, similarity: sim, reason: pass ? "ok" : "below_threshold" };
+  } catch (err) {
+    console.log(`  identity_gate=skipped (error: ${err.message || err})`);
+    return { skipped: true, pass: true, similarity: null, reason: "exec_error" };
+  }
+}
+
+/** True if InsightFace can detect a face on path (same image vs itself). */
+async function insightFaceDetects(path) {
+  if (!existsSync(path) || !existsSync(COMFY_PYTHON) || !existsSync(IDENTITY_SCRIPT)) {
+    return false;
+  }
+  try {
+    const { stdout } = await execFileAsync(
+      COMFY_PYTHON,
+      [IDENTITY_SCRIPT, path, path],
+      { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+    );
+    const line = String(stdout || "")
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .pop();
+    const data = JSON.parse(line || "{}");
+    return Boolean(data.ok);
+  } catch {
+    return false;
+  }
+}
+
 async function runEdit(cfg, ctx) {
   const {
     shot,
@@ -1149,31 +1306,80 @@ async function runEdit(cfg, ctx) {
   const prompt = characterPrompt(cfg, shot, { rebuild: fromEmptyLatent });
   const negative = shotNegative(cfg, shot);
 
-  const buf = await queueAndWait(
-    cfg.comfyUrl,
-    img2imgOpenPoseWorkflow(cfg, {
-      loraName,
-      sourceImageName: source?.uploadName,
-      poseMapName: poseName,
-      prompt,
-      negative,
-      seed,
-      denoise,
-      openPoseStrength: OPENPOSE_STRENGTH,
-      prefix: `id_${prefix}`,
-      backend,
-      faceImageName: faceUploadName,
-      useFaceId,
-      fromEmptyLatent,
-    }),
-    prefix,
-  );
+  const attempts = SKIP_IDENTITY_GATE ? 1 : IDENTITY_RETRIES;
+  let best = null;
+  let bestSim = -Infinity;
+  let lastGate = null;
 
-  await writeFile(outPath, buf);
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const attemptSeed = (seed + attempt * 9973) >>> 0;
+    const buf = await queueAndWait(
+      cfg.comfyUrl,
+      img2imgOpenPoseWorkflow(cfg, {
+        loraName,
+        sourceImageName: source?.uploadName,
+        poseMapName: poseName,
+        prompt,
+        negative,
+        seed: attemptSeed,
+        denoise,
+        openPoseStrength: OPENPOSE_STRENGTH,
+        prefix: `id_${prefix}`,
+        backend,
+        faceImageName: faceUploadName,
+        useFaceId,
+        fromEmptyLatent,
+      }),
+      attempt === 0 ? prefix : `${prefix}_r${attempt}`,
+    );
+
+    const tmpPath = join(OUT_DIR, `_gate_${prefix.replace(/[^\w.-]+/g, "_")}.png`);
+    await writeFile(tmpPath, buf);
+    const gate = await checkIdentitySimilarity(tmpPath);
+    lastGate = gate;
+
+    if (gate.skipped) {
+      best = { buf, seed: attemptSeed, gate };
+      break;
+    }
+
+    const sim = gate.similarity ?? -1;
+    if (sim > bestSim) {
+      bestSim = sim;
+      best = { buf, seed: attemptSeed, gate };
+    }
+
+    if (gate.pass) {
+      console.log(
+        `  identity_gate=pass sim=${sim.toFixed(3)} (threshold ${IDENTITY_THRESHOLD})`,
+      );
+      break;
+    }
+
+    console.log(
+      `  identity_gate=reject sim=${sim.toFixed(3)} < ${IDENTITY_THRESHOLD} (retry ${attempt + 1}/${attempts})`,
+    );
+  }
+
+  if (!best) throw new Error(`Identity gate produced no candidate for ${prefix}`);
+  if (!best.gate.skipped && !best.gate.pass) {
+    console.log(
+      `  identity_gate=warn keeping best sim=${(best.gate.similarity ?? bestSim).toFixed?.(3) ?? bestSim} after ${attempts} tries`,
+    );
+  } else if (best.gate.skipped && best.gate.reason === "skipped_no_face") {
+    console.log("  identity_gate=skipped_no_face");
+  }
+
+  await writeFile(outPath, best.buf);
+  try {
+    await unlink(join(OUT_DIR, `_gate_${prefix.replace(/[^\w.-]+/g, "_")}.png`));
+  } catch {
+    /* ignore */
+  }
   if (captionPath) await writeFile(captionPath, captionFor(cfg, shot), "utf8");
-  const uploaded = await uploadImage(cfg.comfyUrl, `id_out_${prefix}.png`, buf);
+  const uploaded = await uploadImage(cfg.comfyUrl, `id_out_${prefix}.png`, best.buf);
   return {
-    buf,
+    buf: best.buf,
     uploadName: uploaded.name,
     yaw: yawOf(shot.angleKey),
     angleKey: shot.angleKey,
@@ -1182,6 +1388,8 @@ async function runEdit(cfg, ctx) {
     bust: Boolean(shot.bust),
     id: shot.id,
     shotId: shot.id,
+    identityGate: best.gate || lastGate,
+    seedUsed: best.seed,
   };
 }
 
@@ -1264,9 +1472,12 @@ async function main() {
   console.log(`Denoise:    easy~0.55 medium~0.72 hard~0.82 extreme~0.88-0.95 (base ${BASE_DENOISE})`);
   console.log(`OpenPose:   ${OPENPOSE_STRENGTH} (pose only ? identity from latent)`);
   console.log(`Source:     closest keyframe${CHAIN ? " + optional chain" : ""}`);
-  console.log(`Keyframes:  refresh=${NO_KEYFRAME_REFRESH ? "off" : "on"}${FORCE_KEYFRAMES ? " (force regenerate)" : ""}`);
+  console.log(`Keyframes:  refresh=${KEYFRAME_REFRESH ? "on (--keyframe-refresh)" : "off (default)"}`);
   console.log(
-    `FaceID on:  master | controlled rebuilds${AUX_FACEID ? " | all shots (--aux-faceid)" : ""}`,
+    `FaceID on:  master | rebuilds | denoise>=0.65${AUX_FACEID ? " | all (--aux-faceid)" : ""}`,
+  );
+  console.log(
+    `Identity gate: ${SKIP_IDENTITY_GATE ? "off" : `on (threshold ${IDENTITY_THRESHOLD}, retries ${IDENTITY_RETRIES})`}`,
   );
   console.log(
     `Bootstrap:  ${BOOTSTRAP_FROM_TEXT ? "TEXT/NOISE (legacy ? drift risk)" : "real --ref or approved master"}`,
@@ -1294,7 +1505,7 @@ async function main() {
     }
 
     const forceNewMaster = shouldForceNewMaster();
-    const masterSeed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+    const masterSeed = resolveMasterInventSeed();
     if (MASTER_ONLY && isMasterApproved() && !FORCE && !SET_MASTER) {
       console.log(`\n[1] Master already APPROVED: ${MASTER_PATH}`);
       console.log("  Re-run with --force to replace it (clears approval).");
@@ -1376,18 +1587,26 @@ async function main() {
           poseMapName: poseName,
           faceImageName: textBootstrap ? null : faceUploadName,
           backend: textBootstrap ? { name: "none" } : backend,
-          seed: masterSeed + 1,
+          seed: masterSeed,
         }),
         "master",
       );
       await writeFile(MASTER_PATH, masterBuf);
       // Use master itself as face_lock for later continuity (may still be cartoon for InsightFace)
       await copyFile(MASTER_PATH, FACE_LOCK);
+      await writeMasterSeedRecord(masterSeed, {
+        source: SEED_FLAG != null ? "cli --seed" : "random",
+      });
       await clearMasterApproval("new master generated");
       masterJustCreated = true;
       console.log(`  → ${MASTER_PATH}`);
       console.log(`  face_lock ← master`);
-      console.log(`  seed=${masterSeed + 1} (new candidate — not approved yet)`);
+      console.log(
+        SEED_FLAG != null
+          ? `  invent seed=${masterSeed} (--seed override)`
+          : `  invent seed=${masterSeed} (random candidate — approve to lock identity)`,
+      );
+      console.log(`  after approve: keyframes/shots use character seed=${cfg.seed}`);
       if (cfg.openImages !== false) openFile(MASTER_PATH);
     } else if (!SET_MASTER) {
       console.log(`\n[1b] Existing master: ${MASTER_PATH}`);
@@ -1442,6 +1661,18 @@ async function main() {
       await uploadImage(cfg.comfyUrl, "id_face_lock_ref.png", await readFile(FACE_LOCK))
     ).name;
   }
+
+  // Cartoon masters often have no InsightFace-detectable face — FaceID would crash Comfy.
+  if (faceUploadName) {
+    const probe = existsSync(FACE_LOCK) ? FACE_LOCK : MASTER_PATH;
+    if (!(await insightFaceDetects(probe))) {
+      console.log(
+        "  FaceID disabled: InsightFace found no face on face_lock (common for cartoons). Using img2img latent only.",
+      );
+      faceUploadName = null;
+    }
+  }
+
   /** @type {Array<object>} */
   let keyframeBank = [];
 
@@ -1475,9 +1706,14 @@ async function main() {
 
       const shot = keyframeShotFromSpec(spec);
       const { source, reason } = selectSource(shot, keyframeBank, null);
-      const rebuild = needsEmptyLatentRebuild(shot, source);
-      const denoise = rebuild ? 1 : denoiseForEdit(shot, source);
-      const useFaceId = shouldUseFaceId(rebuild);
+      let rebuild = needsEmptyLatentRebuild(shot, source);
+      let denoise = rebuild ? 1 : denoiseForEdit(shot, source);
+      // Without FaceID, EmptyLatent invents identity — fall back to strong img2img instead.
+      if (rebuild && !faceUploadName) {
+        rebuild = false;
+        denoise = Math.max(denoiseForEdit(shot, source), 0.85);
+      }
+      const useFaceId = shouldUseFaceId(rebuild, denoise) && Boolean(faceUploadName);
 
       console.log(
         `  ${spec.id} ? ${reason} (${rebuild ? "REBUILD EmptyLatent+FaceID" : "img2img"} denoise=${denoise.toFixed(2)} faceid=${useFaceId})`,
@@ -1548,9 +1784,13 @@ async function main() {
     }
 
     const { source, reason } = selectSource(shot, keyframeBank, lastAccepted);
-    const rebuild = needsEmptyLatentRebuild(shot, source);
-    const denoise = rebuild ? 1 : denoiseForEdit(shot, source);
-    const useFaceId = shouldUseFaceId(rebuild);
+    let rebuild = needsEmptyLatentRebuild(shot, source);
+    let denoise = rebuild ? 1 : denoiseForEdit(shot, source);
+    if (rebuild && !faceUploadName) {
+      rebuild = false;
+      denoise = Math.max(denoiseForEdit(shot, source), 0.85);
+    }
+    const useFaceId = shouldUseFaceId(rebuild, denoise) && Boolean(faceUploadName);
 
     console.log(
       `  (${i + 1}/${shots.length}) ${shot.id} ? ${reason} (${rebuild ? "REBUILD" : "img2img"} denoise=${denoise.toFixed(2)} faceid=${useFaceId})`,
@@ -1573,7 +1813,7 @@ async function main() {
 
     lastAccepted = result;
 
-    // Keyframe refresh ? bank improves when a better viewpoint anchor appears
+    // Keyframe refresh only when --keyframe-refresh (opt-in; avoids bank pollution)
     const refreshKf = findRefreshTarget(shot, keyframeBank);
     if (refreshKf) {
       await refreshKeyframe(refreshKf, result.buf, cfg, shot);
@@ -1588,6 +1828,8 @@ async function main() {
       sourceYaw: source.yaw,
       targetYaw: yawOf(shot.angleKey),
       refreshedKeyframe: refreshKf ? refreshKf.id : null,
+      identityGate: result.identityGate || null,
+      seedUsed: result.seedUsed ?? null,
     });
     console.log(`  ? ${imgPath}`);
     if (cfg.openImages) openFile(imgPath);
@@ -1597,7 +1839,7 @@ async function main() {
   await copyFile(MASTER_PATH, masterDs);
   await writeFile(
     join(IMAGES_DIR, `${cfg.trigger}_00_master_identity.txt`),
-    `${cfg.trigger}, master identity, front view, standing, ${cfg.appearance}, ${cfg.outfit}`,
+    `${cfg.trigger}, master identity, front view, standing, ${cfg.appearance}, ${outfitPositive(cfg)}`,
     "utf8",
   );
 
@@ -1612,10 +1854,15 @@ async function main() {
         identityBackend: backend.name,
         lora: loraName,
         baseDenoise: BASE_DENOISE,
-        denoiseBands: { easy: 0.55, medium: 0.72, hard: 0.82, extreme: [0.88, 0.95] },
+        denoiseBands: { easy: 0.55, medium: 0.72, hard: 0.82, walk: [0.72, 0.78] },
         chaining: CHAIN,
-        keyframeRefresh: !NO_KEYFRAME_REFRESH,
-        faceIdPolicy: "master | controlled rebuilds | optional --aux-faceid",
+        keyframeRefresh: KEYFRAME_REFRESH,
+        faceIdPolicy: "master | rebuilds | denoise>=0.65 | optional --aux-faceid",
+        identityGate: {
+          enabled: !SKIP_IDENTITY_GATE,
+          threshold: IDENTITY_THRESHOLD,
+          retries: IDENTITY_RETRIES,
+        },
         keyframes: keyframeBank.map((k) => ({
           id: k.id,
           angleKey: k.angleKey,

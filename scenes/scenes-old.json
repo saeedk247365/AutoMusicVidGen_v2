@@ -1,0 +1,31 @@
+{
+  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even lighting, empty environment, no people, no characters, no faces, no animals with faces, plain and simple, not realistic",
+  "negative": "photo, photorealistic, 3d render, people, person, character, face, animal, text, watermark, cluttered, dark horror, neon cyberpunk, blurry, low quality, collage, split screen",
+  "scenes": [
+    {
+      "id": "home",
+      "name": "Home",
+      "still": "simple cozy living room interior, plain soft walls, one sofa, small window with soft light, clean floor, empty room, no people, minimal furniture, plain and tidy"
+    },
+    {
+      "id": "lawn",
+      "name": "Lawn",
+      "still": "simple sunny front lawn, short green grass, plain blue sky, small house edge barely visible, empty yard, no people, no animals, clean and plain"
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "still": "simple cartoon kitchen interior, plain cabinets, small table, soft window light, clean counters, empty room, no people, no food mess, plain and tidy"
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "still": "simple cozy bedroom interior, plain walls, one bed with soft blanket, small nightstand, soft morning light, empty room, no people, plain and tidy"
+    },
+    {
+      "id": "dining_room",
+      "name": "Dining Room",
+      "still": "simple dining room interior, plain table with chairs, soft window light, clean floor, empty room, no people, no food, plain and tidy"
+    }
+  ]
+}

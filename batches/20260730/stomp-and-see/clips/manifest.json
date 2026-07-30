@@ -1,0 +1,77 @@
+{
+  "songDir": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see",
+  "createdAt": "2026-07-30T21:24:52.343Z",
+  "wan": {
+    "width": 640,
+    "height": 1136,
+    "length": 49,
+    "fps": 16,
+    "steps": 4
+  },
+  "clips": [
+    {
+      "stem": "01_01_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\01_01_intro.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: clapping hands slowly once or twice, in kitchen, full body, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3035264529,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_01_01_intro_ms80v0u0_00001_.mp4"
+    },
+    {
+      "stem": "02_02_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\02_02_intro.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: walking in place, short steps, in lawn, medium full, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3035614142,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_02_02_intro_ms812iky_00001_.mp4"
+    },
+    {
+      "stem": "03_03_verse1",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\03_03_verse1.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: waving one hand gently, in lawn, medium, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3035808459,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_03_03_verse1_ms816ohy_00001_.mp4"
+    },
+    {
+      "stem": "04_04_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\04_04_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: arms raised, gentle bounce, in lawn, full body, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3036002614,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_04_04_chorus_ms81auat_00001_.mp4"
+    },
+    {
+      "stem": "05_05_verse2",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\05_05_verse2.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: kneeling, slight torso sway, in lawn, medium full, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3036198061,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_05_05_verse2_ms81f13k_00001_.mp4"
+    },
+    {
+      "stem": "06_06_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\06_06_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: clapping hands slowly once or twice, in lawn, close, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3036393640,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_06_06_chorus_ms81j7zp_00001_.mp4"
+    },
+    {
+      "stem": "07_07_bridge",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\07_07_bridge.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: sitting, soft posture shift, in bedroom, medium, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3036587836,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_07_07_bridge_ms81ndtq_00001_.mp4"
+    },
+    {
+      "stem": "08_08_outro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\clips\\08_08_outro.mp4",
+      "reused": false,
+      "motion": "cartoon family music video still, Adam: clapping hands slowly once or twice, in dining_room, full body, gentle natural motion, keep pose geometry, soft camera push-in, flat 2D anime cartoon style, keep identity and outfit fixed, no sudden pose changes, no morphing, no extra limbs",
+      "seed": 3036780561,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_08_08_outro_ms81rii0_00001_.mp4"
+    }
+  ]
+}

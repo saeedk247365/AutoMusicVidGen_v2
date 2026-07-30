@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, copyFile, readdir, rm } from "fs/promises";
+import { mkdir, readFile, writeFile, copyFile, readdir, rm, unlink, rename } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname, basename, extname, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -42,7 +42,7 @@ async function loadConfig() {
   return {
     ...train,
     comfyUrl: train.comfyUrl || character.comfyUrl || "http://127.0.0.1:8188",
-    checkpoint: train.checkpoint || character.checkpoint || "DreamShaper_8_pruned.safetensors",
+    checkpoint: train.checkpoint || character.checkpoint || "realcartoon3d_v15.safetensors",
     loraName: train.loraName || `${trigger}_character_v1`,
     datasetFolder: train.datasetFolder || `character_lora_${trigger}`,
     trigger,
@@ -274,6 +274,41 @@ async function findNewestLora(outputLorasDir, loraName) {
   return files[0];
 }
 
+/** Windows-safe install: old LoRA in models/loras is often locked by ComfyUI. */
+async function installLoraFile(src, dest) {
+  const tmp = `${dest}.tmp`;
+  await copyFile(src, tmp);
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      if (existsSync(dest)) await unlink(dest);
+      await rename(tmp, dest);
+      return dest;
+    } catch (err) {
+      if (attempt === 4) {
+        const alt = dest.replace(
+          /\.safetensors$/i,
+          `_new_${Date.now()}.safetensors`,
+        );
+        try {
+          if (existsSync(tmp)) await rename(tmp, alt);
+          else await copyFile(src, alt);
+        } catch {
+          await copyFile(src, alt);
+        }
+        console.warn(
+          `Could not overwrite ${dest} (${err.message || err}).\n  Saved as: ${alt}`,
+        );
+        console.warn(
+          "  Tip: unload the LoRA / free VRAM in ComfyUI, then rename the _new_ file.",
+        );
+        return alt;
+      }
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+  return dest;
+}
+
 async function copyOutputs(cfg, trainedPath) {
   const copies = [];
 
@@ -281,16 +316,14 @@ async function copyOutputs(cfg, trainedPath) {
     const destDir = join(cfg.comfyRoot, "models", "loras");
     await mkdir(destDir, { recursive: true });
     const dest = join(destDir, `${cfg.loraName}.safetensors`);
-    await copyFile(trainedPath, dest);
-    copies.push(dest);
+    copies.push(await installLoraFile(trainedPath, dest));
   }
 
   if (cfg.copyToProject) {
     const destDir = join(ROOT, "loras");
     await mkdir(destDir, { recursive: true });
     const dest = join(destDir, `${cfg.loraName}.safetensors`);
-    await copyFile(trainedPath, dest);
-    copies.push(dest);
+    copies.push(await installLoraFile(trainedPath, dest));
   }
 
   return copies;

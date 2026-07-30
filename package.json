@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "auto-music-vid-gen",
   "version": "1.0.0",
   "private": true,
@@ -6,17 +6,21 @@
   "scripts": {
     "song": "node scripts/00-generate-song.js",
     "nursery": "node scripts/01-generate-lyrics+songx10.js",
-    "family": "node scripts/02-generate-lyrics+song+scene+keyframesx10.js",
-    "family:chars": "node scripts/02-generate-lyrics+song+scene+keyframesx10.js --chars-only",
-
-    "generate:tom:master": "node scripts/generate-dataset.js --character characters/tomchr.json --out dataset/tom --master-only --bootstrap-from-text",
-    "generate:tom:approve": "node scripts/generate-dataset.js --character characters/tomchr.json --out dataset/tom --approve-master --master-only",
-    "generate:tom": "node scripts/generate-dataset.js --character characters/tomchr.json --out dataset/tom",
-
+    "family": "node scripts/02_0_generate-lyrics+song+scene+keyframes.js",
+    "family:chars": "node scripts/02_0_generate-lyrics+song+scene+keyframes.js --chars-only",
+    "family:animate": "node scripts/02_1_animate-keyframes.js",
+    "family:stitch": "node scripts/02_2_stitch-song.js",
     "generate:adam:master": "node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam --master-only --bootstrap-from-text",
     "generate:adam:approve": "node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam --approve-master --master-only",
     "generate:adam": "node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam",
-
-    "train": "node scripts/train-lora.js --character characters/tomchr.json"
+    "train:adam": "node scripts/train-lora.js --train-config train-config-adam.json --character characters/adam.json"
+  },
+  "dependencies": {
+    "sharp": "^0.35.3"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true,
+    "sharp@0.35.3": true,
+    "onnxruntime-node@1.17.3": true
   }
 }

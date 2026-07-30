@@ -1,0 +1,404 @@
+{
+  "character": "Adam",
+  "trigger": "adamboy",
+  "pipeline": "identity-first-persistent-state",
+  "philosophy": "Identity is preserved. Pose is edited.",
+  "identityBackend": "faceid",
+  "lora": null,
+  "baseDenoise": 0.55,
+  "denoiseBands": {
+    "easy": 0.55,
+    "medium": 0.72,
+    "hard": 0.82,
+    "walk": [
+      0.72,
+      0.78
+    ]
+  },
+  "chaining": false,
+  "keyframeRefresh": false,
+  "faceIdPolicy": "master | rebuilds | denoise>=0.65 | optional --aux-faceid",
+  "identityGate": {
+    "enabled": true,
+    "threshold": 0.4,
+    "retries": 3
+  },
+  "keyframes": [
+    {
+      "id": "front",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left45",
+      "angleKey": "threequarter_left",
+      "yaw": -55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right45",
+      "angleKey": "threequarter_right",
+      "yaw": 55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left_profile",
+      "angleKey": "side_left",
+      "yaw": -90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right_profile",
+      "angleKey": "side_right",
+      "yaw": 90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "back",
+      "angleKey": "threequarter_back_left",
+      "yaw": -145,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "smile",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "happy",
+      "bust": false
+    },
+    {
+      "id": "neutral",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": true
+    },
+    {
+      "id": "sit",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "crawl",
+      "angleKey": "threequarter_right",
+      "yaw": 55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "walk",
+      "angleKey": "threequarter_right",
+      "yaw": 55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "hands_up",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "happy",
+      "bust": false
+    },
+    {
+      "id": "wave",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "happy",
+      "bust": false
+    },
+    {
+      "id": "point",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "happy_face",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "happy",
+      "bust": true
+    },
+    {
+      "id": "sad_face",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "sad",
+      "bust": true
+    },
+    {
+      "id": "surprised_face",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "surprised",
+      "bust": true
+    }
+  ],
+  "shots": [
+    {
+      "id": "01_front_stand",
+      "source": "keyframe:front",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.8617331981658936,
+        "reason": "ok"
+      },
+      "seedUsed": 999801
+    },
+    {
+      "id": "02_side_stand",
+      "source": "keyframe:left_profile",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -90,
+      "targetYaw": -90,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.5649951696395874,
+        "reason": "ok"
+      },
+      "seedUsed": 999818
+    },
+    {
+      "id": "03_threequarter_stand",
+      "source": "keyframe:left45",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6185672283172607,
+        "reason": "ok"
+      },
+      "seedUsed": 999835
+    },
+    {
+      "id": "04_sitting",
+      "source": "keyframe:front",
+      "denoise": 1,
+      "rebuild": true,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6730214953422546,
+        "reason": "ok"
+      },
+      "seedUsed": 999852
+    },
+    {
+      "id": "05_crawling",
+      "source": "keyframe:right45",
+      "denoise": 1,
+      "rebuild": true,
+      "faceId": true,
+      "sourceYaw": 55,
+      "targetYaw": 55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6144965887069702,
+        "reason": "ok"
+      },
+      "seedUsed": 999869
+    },
+    {
+      "id": "06_walking",
+      "source": "keyframe:right45",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 55,
+      "targetYaw": 55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7229819297790527,
+        "reason": "ok"
+      },
+      "seedUsed": 999886
+    },
+    {
+      "id": "07_hands_up",
+      "source": "keyframe:front",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6739714741706848,
+        "reason": "ok"
+      },
+      "seedUsed": 999903
+    },
+    {
+      "id": "08_pointing",
+      "source": "keyframe:front",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6785520911216736,
+        "reason": "ok"
+      },
+      "seedUsed": 999920
+    },
+    {
+      "id": "09_waving",
+      "source": "keyframe:front",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6647958755493164,
+        "reason": "ok"
+      },
+      "seedUsed": 999937
+    },
+    {
+      "id": "10_happy_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6948835849761963,
+        "reason": "ok"
+      },
+      "seedUsed": 999954
+    },
+    {
+      "id": "11_sad_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6477296352386475,
+        "reason": "ok"
+      },
+      "seedUsed": 999971
+    },
+    {
+      "id": "12_surprised_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6411681175231934,
+        "reason": "ok"
+      },
+      "seedUsed": 999988
+    },
+    {
+      "id": "13_close_face",
+      "source": "keyframe:neutral",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7693290710449219,
+        "reason": "ok"
+      },
+      "seedUsed": 1000005
+    },
+    {
+      "id": "14_side_walk",
+      "source": "keyframe:right_profile",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 90,
+      "targetYaw": 90,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.5864970684051514,
+        "reason": "ok"
+      },
+      "seedUsed": 1000022
+    },
+    {
+      "id": "15_threequarter_wave",
+      "source": "keyframe:left45",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6060687303543091,
+        "reason": "ok"
+      },
+      "seedUsed": 1000039
+    }
+  ]
+}

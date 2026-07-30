@@ -1,0 +1,19 @@
+{
+  "songDir": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see",
+  "createdAt": "2026-07-30T22:00:57.247Z",
+  "clips": [
+    "01_01_intro.mp4",
+    "02_02_intro.mp4",
+    "03_03_verse1.mp4",
+    "04_04_chorus.mp4",
+    "05_05_verse2.mp4",
+    "06_06_chorus.mp4",
+    "07_07_bridge.mp4",
+    "08_08_outro.mp4"
+  ],
+  "mp3": "stomp-and-see.mp3",
+  "videoDurationSec": 24.5,
+  "audioDurationSec": 180,
+  "padSec": 155.5,
+  "final": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\stomp-and-see\\final.mp4"
+}

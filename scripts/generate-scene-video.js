@@ -485,7 +485,7 @@ async function main() {
   const seed = flag("--seed") ? Number(flag("--seed")) : 42;
 
   const cfg = {
-    checkpoint: character.checkpoint || "DreamShaper_8_pruned.safetensors",
+    checkpoint: character.checkpoint || "realcartoon3d_v15.safetensors",
     loraName: flag("--lora", "tomchr_character_v1.safetensors"),
     loraStrength: Number(flag("--strength", "0.9")),
     // Landscape for cinematic scenes

@@ -355,7 +355,7 @@ async function main() {
   const comfyUrl = character.comfyUrl || "http://127.0.0.1:8188";
 
   const cfg = {
-    checkpoint: character.checkpoint || "DreamShaper_8_pruned.safetensors",
+    checkpoint: character.checkpoint || "realcartoon3d_v15.safetensors",
     loraName: flag("--lora", "tomchr_character_v1.safetensors"),
     loraStrength: Number(flag("--strength", "0.85")),
     stillWidth: 512,

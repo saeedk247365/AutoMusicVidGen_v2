@@ -2,7 +2,7 @@
   "comfyUrl": "http://127.0.0.1:8188",
   "comfyRoot": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI",
   "datasetDir": "dataset/tom/images",
-  "checkpoint": "DreamShaper_8_pruned.safetensors",
+  "checkpoint": "realcartoon3d_v15.safetensors",
 
   "loraName": "tomchr_character_v1",
   "datasetFolder": "character_lora_tomchr",
