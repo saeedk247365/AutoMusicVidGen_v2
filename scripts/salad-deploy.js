@@ -101,7 +101,7 @@ async function createGroup(org, project, name, image, gpuIds) {
         cpu: 4,
         memory: 30720,
         gpu_classes: gpuIds,
-        storage_amount: 107374182400, // 100 GiB for Wan weights + outputs
+        storage_amount: 107374182400,
       },
       priority: "high",
     },
@@ -128,6 +128,15 @@ async function createGroup(org, project, name, image, gpuIds) {
       failure_threshold: 3,
     },
   };
+
+  const ghUser = (process.env.GHCR_USER || "saeedk247365").trim();
+  const ghToken = (process.env.GHCR_TOKEN || "").trim();
+  if (ghToken) {
+    body.container.registry_authentication = {
+      basic: { username: ghUser, password: ghToken },
+    };
+  }
+
   return api(
     "POST",
     `/organizations/${encodeURIComponent(org)}/projects/${encodeURIComponent(project)}/containers`,
