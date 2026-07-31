@@ -2,7 +2,8 @@
 set -euo pipefail
 
 COMFY_DIR="${COMFY_DIR:-/opt/ComfyUI}"
-COMFY_PORT="${COMFY_PORT:-8188}"
+# Salad gateway often uses 8888; local default 8188. Prefer PORT / COMFY_PORT env.
+COMFY_PORT="${COMFY_PORT:-${PORT:-8888}}"
 cd "$COMFY_DIR"
 
 echo "════════════════════════════════════════════════════"

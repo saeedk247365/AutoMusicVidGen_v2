@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     COMFY_DIR=/opt/ComfyUI \
-    COMFY_PORT=8188 \
+    COMFY_PORT=8888 \
     MODEL_CACHE=/opt/ComfyUI/models \
     HF_HUB_ENABLE_HF_TRANSFER=1
 
@@ -60,7 +60,7 @@ RUN chmod +x ${COMFY_DIR}/entrypoint.sh \
       ${COMFY_DIR}/temp \
       /tmp/ready
 
-EXPOSE 8188
+EXPOSE 8888
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS "http://127.0.0.1:${COMFY_PORT}/system_stats" || exit 1
