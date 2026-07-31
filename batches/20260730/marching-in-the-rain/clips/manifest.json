@@ -1,0 +1,167 @@
+{
+  "songDir": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain",
+  "createdAt": "2026-07-31T05:31:42.847Z",
+  "kidsHit": true,
+  "wan": {
+    "width": 768,
+    "height": 768,
+    "length": 81,
+    "fps": 16,
+    "steps": 4
+  },
+  "clips": [
+    {
+      "stem": "01_01_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\01_01_intro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, soft uncertain energy, looking around, small hesitant motion, preschool problem moment, standing calmly, tiny breath sway, soft preschool stillness, anticipation pose starting the action, small wind-up, not finished yet, acting out: rain is falling, in home, medium full, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3064475034,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_01_01_intro_ms8i93sw_00001_.mp4"
+    },
+    {
+      "stem": "02_02_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\02_02_intro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, soft uncertain energy, looking around, small hesitant motion, preschool problem moment, standing calmly, tiny breath sway, soft preschool stillness, mid-action clear readable motion, acting out: rain is falling, in home, medium, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3064717561,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_02_02_intro_ms8ieax9_00001_.mp4"
+    },
+    {
+      "stem": "03_03_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\03_03_intro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, soft uncertain energy, looking around, small hesitant motion, preschool problem moment, soft pointing gesture, tiny motion, follow-through of the action, settling after the move, soft finish, entering from the left side of frame, acting out: no going out, oh no!, in home, medium full, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3064949386,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_03_03_intro_ms8ij9se_00001_.mp4"
+    },
+    {
+      "stem": "04_04_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\04_04_intro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, soft uncertain energy, looking around, small hesitant motion, preschool problem moment, standing calmly, tiny breath sway, soft preschool stillness, anticipation pose starting the action, small wind-up, not finished yet, moving toward the exit of frame, walking out, acting out: no going out, oh no!, in doorway, medium, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3065181147,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_04_04_intro_ms8io8lf_00001_.mp4"
+    },
+    {
+      "stem": "05_05_intro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\05_05_intro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, soft uncertain energy, looking around, small hesitant motion, preschool problem moment, standing calmly, tiny breath sway, soft preschool stillness, mid-action clear readable motion, continuing the same stand motion from the previous shot, do not reset pose, entering from the right side of frame, acting out: no going out, oh no!, in hallway, medium full, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3065410257,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_05_05_intro_ms8it5dh_00001_.mp4"
+    },
+    {
+      "stem": "06_06_verse1",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\06_06_verse1.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, curious brightening energy, noticing something, stepping into the idea, soft pointing gesture, tiny motion, anticipation pose starting the action, small wind-up, not finished yet, entering from the left side of frame, acting out: Adam sees the door, in home, medium, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3065634918,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_06_06_verse1_ms8ixyp9_00001_.mp4"
+    },
+    {
+      "stem": "07_07_verse1",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\07_07_verse1.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, curious brightening energy, noticing something, stepping into the idea, soft pointing gesture, tiny motion, mid-action clear readable motion, acting out: Adam sees the door, in home, medium full, gentle natural motion, keep pose geometry, soft camera push-in, quiet preschool energy, flat 2D anime cartoon style, no sudden pose changes, no morphing, no extra limbs, no stomping",
+      "seed": 3065859295,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_07_07_verse1_ms8j2rtk_00001_.mp4"
+    },
+    {
+      "stem": "08_08_verse1",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\08_08_verse1.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, curious brightening energy, noticing something, stepping into the idea, small steps across the frame on the beat, knees lifting, arms swinging, body shifts left or right, follow-through of the action, settling after the move, soft finish, continuing the same point motion from the previous shot, do not reset pose, acting out: Let's march once more!, in home, medium, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3066083612,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_08_08_verse1_ms8j7kvn_00001_.mp4"
+    },
+    {
+      "stem": "09_09_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\09_09_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, stomping feet alternately on the beat, knees lifting, whole-body bounce, anticipation pose starting the action, small wind-up, not finished yet, acting out: stomp, stomp on the floor below!, in home, full body, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3066307982,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_09_09_chorus_ms8jce0d_00001_.mp4"
+    },
+    {
+      "stem": "10_10_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\10_10_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, stomping feet alternately on the beat, knees lifting, whole-body bounce, mid-action clear readable motion, continuing the same stomp motion from the previous shot, do not reset pose, acting out: stomp, stomp on the floor below!, in home, medium full, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3066532196,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_10_10_chorus_ms8jh6zl_00001_.mp4"
+    },
+    {
+      "stem": "11_11_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\11_11_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, small steps across the frame on the beat, knees lifting, arms swinging, body shifts left or right, follow-through of the action, settling after the move, soft finish, continuing the same stomp motion from the previous shot, do not reset pose, acting out: stomp, stomp on the floor below!, in home, full body, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3066762638,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_11_11_chorus_ms8jm4sp_00001_.mp4"
+    },
+    {
+      "stem": "12_12_chorus",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\12_12_chorus.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, small steps across the frame on the beat, knees lifting, arms swinging, body shifts left or right, mid-action clear readable motion, moving toward the exit of frame, walking out, crossing a doorway threshold, short bridge shot, acting out: through the door, in hallway, medium full, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3066992999,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_12_12_chorus_ms8jr2iy_00001_.mp4"
+    },
+    {
+      "stem": "13_13_verse2",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\13_13_verse2.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, arms raised high, bouncing on the beat, joyful preschool dance, anticipation pose starting the action, small wind-up, not finished yet, moving toward the exit of frame, walking out, acting out: marches past the table, in kitchen, full body, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3067224980,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_13_13_verse2_ms8jw1in_00001_.mp4"
+    },
+    {
+      "stem": "14_14_verse2",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\14_14_verse2.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, small steps across the frame on the beat, knees lifting, arms swinging, body shifts left or right, mid-action clear readable motion, acting out: marches past the table, in kitchen, medium full, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3067458095,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_14_14_verse2_ms8k11dc_00001_.mp4"
+    },
+    {
+      "stem": "15_15_verse2",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\15_15_verse2.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, clear joyful rhythmic motion on the beat, playful preschool dance energy, small steps across the frame on the beat, knees lifting, arms swinging, body shifts left or right, mid-action clear readable motion, moving toward the exit of frame, walking out, crossing a doorway threshold, short bridge shot, acting out: through the door, in doorway, full body, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3067691378,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_15_15_verse2_ms8k61d4_00001_.mp4"
+    },
+    {
+      "stem": "16_16_outro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\16_16_outro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, big happy finish energy, proud smile motion, celebratory bounce, problem solved, arms raised high, bouncing on the beat, joyful preschool dance, anticipation pose starting the action, small wind-up, not finished yet, moving toward the exit of frame, walking out, acting out: sun comes out, in lawn, medium full, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3067922915,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_16_16_outro_ms8kb008_00001_.mp4"
+    },
+    {
+      "stem": "17_17_outro",
+      "file": "E:\\DeploymentProduction\\AutoMusicVidGen\\batches\\20260730\\marching-in-the-rain\\clips\\17_17_outro.mp4",
+      "reused": false,
+      "motion": "cartoon preschool music video still, big happy finish energy, proud smile motion, celebratory bounce, problem solved, arms raised high, bouncing on the beat, joyful preschool dance, mid-action clear readable motion, acting out: sun comes out, in lawn, full body, clear rhythmic motion on the beat, keep identity and outfit fixed, flat 2D anime cartoon style, no morphing, no extra limbs, readable preschool dance",
+      "seed": 3068154628,
+      "length": 69,
+      "comfySource": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI\\output\\video\\kf_17_17_outro_ms8kfysb_00001_.mp4"
+    }
+  ]
+}

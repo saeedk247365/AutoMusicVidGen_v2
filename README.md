@@ -122,49 +122,43 @@ Weights land in ComfyUI `models/loras/` and (if enabled) `loras/` in this repo. 
 
 ## Music / family video
 
-Song keyframes use a **composite pipeline**: solo chroma-green character plates (one person each) → code cut + placement on the empty scene → low-denoise polish (~0.25). SD never draws two characters in one pass.
-
-Beats in `scenes/actions.json` use frozen-frame fields: `camera`, `placement`, `pose`, `expression`, `facing` (no `lookAt`, no `prompt_extra`). Poses: `stand`, `sit`, `kneel`, `walk`, `wave`, `point`, `hands_up`, `clap`.
+Song keyframes use a **composite pipeline**: solo studio character plates → rembg cut → paste on empty scene.
 
 ```bash
-npm run family              # 02_0 lyrics + song + beat plan + composited keyframes → batches/
-npm run family:chars        # shared character stills only
+npm run family              # classic: ~180s, 6–8 beats
+npm run family:animate
+npm run family:stitch
+```
 
-# Regen keyframes for an existing song (normalizes actions.json → frozen schema):
+### Kids-hit mode (opt-in — does not change classic defaults)
+
+Shorter home songs (~75s), timed dense beats, energetic Wan motion, stitch loop-fill (no freeze pad). Continuity contract: [docs/CONTINUITY.md](docs/CONTINUITY.md). Dry-run: `npm run family:kids:validate` (add `-- --repair` to exercise bridges). Golden: `batches/_templates/continuity-golden-rainy-march.json`.
+
+```bash
+npm run family:kids
+npm run family:kids:animate -- --song batches/<date>/<slug> --force
+npm run family:kids:stitch -- --song batches/<date>/<slug> --force
+```
+
+Or flags: `--kids-hit` on 02_0/02_1, `--loop-fill` on 02_2.
+
+Classic regen still works:
+
+```bash
 node scripts/02_0_generate-lyrics+song+scene+keyframes.js --song batches/<date>/<slug> --keyframes-only
-
-# Re-plan beats with Qwen from lyrics.txt, then regen stills:
 node scripts/02_0_generate-lyrics+song+scene+keyframes.js --song batches/<date>/<slug> --keyframes-only --replan
-
-# After keyframes exist (and GPU is free — not during LoRA train):
-node scripts/02_1_animate-keyframes.js --song batches/<date>/<slug>
-node scripts/02_2_stitch-song.js --song batches/<date>/<slug>
 ```
 
 Outputs per song:
+
 ```
 batches/<date>/<slug>/
   <slug>.mp3
   lyrics.txt
   scenes/actions.json + room PNGs
-  keyframes/*.png           ← one composited still per beat
-  keyframes/plates/*.png    ← solo chroma-green plates (debug)
-  clips/*.mp4               ← from 02_1 (Wan)
-  final.mp4                 ← from 02_2 (clips + song)
+  keyframes/*.png
+  clips/*.mp4
+  final.mp4
 ```
 
-`actions.json` beat shape:
-```json
-{
-  "id": "01_intro",
-  "location": "kitchen",
-  "camera": "full_body",
-  "placement": { "Tom": "left", "Adam": "right" },
-  "characters": [
-    { "name": "Tom", "pose": "kneel", "expression": "happy", "facing": "front" },
-    { "name": "Adam", "pose": "clap", "expression": "happy", "facing": "front" }
-  ]
-}
-```
-
-Character LoRA files (Comfy `models/loras/`): set `loraName` in `characters/adam.json` / `tom.json` (e.g. `adamboy_character_v1.safetensors`, `tom_character_v1.safetensors`).
+Character LoRA files (Comfy `models/loras/`): set `loraName` in `characters/adam.json`.

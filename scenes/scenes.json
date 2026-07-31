@@ -15,17 +15,32 @@
     {
       "id": "kitchen",
       "name": "Kitchen",
-      "still": "bright family cartoon kitchen viewed from doorway, bottom 50 percent of image is EMPTY blue tiled floor only with nothing on it, round dining table and chairs pushed to the FAR BACK against the back wall looking adult-sized and distant, cabinets and counters only along far back and far side walls, refrigerator far left against wall, stove far right against wall, window above sink on back wall, wide open clear standing space filling the entire foreground, tidy, empty, no people"
+      "still": "bright family cartoon kitchen viewed from doorway, bottom 40 percent EMPTY blue tiled floor for a toddler to stand, sink with faucet clearly visible on the LEFT midground counter, soap bottle near sink, cabinets along back and side walls, refrigerator far left, stove far right, window above sink, round table pushed FAR BACK right, tidy preschool kitchen, empty of people"
+    },
+    {
+      "id": "kitchen_sink",
+      "name": "Kitchen Sink",
+      "still": "close mid shot of cartoon kitchen sink area, stainless or white sink with curved faucet centered in midground, soap dispenser and small towel on counter beside sink, blue tiled floor in foreground with clear standing space in front of the sink, upper cabinets above, window light, tidy preschool kitchen corner, empty of people, no characters"
     },
     {
       "id": "bedroom",
       "name": "Bedroom",
-      "still": "cozy toddler bedroom viewed from doorway, bottom 50 percent of image is EMPTY light wooden floor only with nothing on it, small bed pushed to the FAR BACK wall looking distant, bedside table and lamp beside the bed, toy shelf against far side wall, sunny window with curtains on back wall, wide open clear floor space filling the entire foreground for a toddler to stand, clean, empty, no people"
+      "still": "cozy toddler bedroom viewed from doorway, soft pastel blue walls, toddler bed with blanket and pillow against the FAR back wall looking adult-child sized and distant, bedside table and lamp beside the bed, toy shelf against far side wall, large EMPTY light wooden floor in the FOREGROUND center for a toddler to stand or sit, sunny window with curtains on back wall, wide open clear floor space in front of the bed covering bottom 45 percent of image, clean colorful kids room with a few soft toys on the far shelf only, empty of people, flat 2D anime cartoon illustration"
     },
     {
       "id": "dining_room",
       "name": "Dining Room",
       "still": "bright cartoon dining room viewed from doorway, bottom 50 percent of image is EMPTY light wooden floor only with nothing on it, rectangular wooden table with chairs pushed to the FAR BACK half of the room looking adult-sized and distant, window on far left wall, framed picture on far right wall, plant in far back corner, wide open clear floor aisle filling the entire foreground, tidy, empty, no people, no food"
+    },
+    {
+      "id": "doorway",
+      "name": "Doorway",
+      "still": "cartoon interior doorway threshold viewed straight on, open wooden door in the center midground, empty light floor in foreground for a toddler to walk through, soft hallway light beyond the door, simple walls, clean preschool set, empty of people, transition bridge shot"
+    },
+    {
+      "id": "hallway",
+      "name": "Hallway",
+      "still": "short cartoon home hallway corridor, empty wooden floor corridor leading forward, door frames on left and right edges, soft daylight from far end, clear walking space in center, tidy preschool set, empty of people, transition bridge shot"
     }
   ]
 }

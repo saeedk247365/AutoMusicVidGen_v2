@@ -1,0 +1,504 @@
+{
+  "beats": [
+    {
+      "id": "01_intro",
+      "location": "home",
+      "section": "Intro",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "left"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stand",
+          "expression": "curious",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "rain is falling",
+      "depth": "mid",
+      "storyBeat": "problem",
+      "cause": "song starts",
+      "effect": "sees rain at the window",
+      "cutMotivation": "look",
+      "actionPhase": "anticipate",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 0,
+      "endSec": 4.412
+    },
+    {
+      "id": "02_intro",
+      "location": "home",
+      "section": "Intro",
+      "camera": "medium",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stand",
+          "expression": "curious",
+          "facing": "three_quarter_left"
+        }
+      ],
+      "lyricHint": "rain is falling",
+      "depth": "mid",
+      "storyBeat": "problem",
+      "cause": "sees rain",
+      "effect": "points at the window",
+      "cutMotivation": "point",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 4.412,
+      "endSec": 8.824
+    },
+    {
+      "id": "03_intro",
+      "location": "home",
+      "section": "Intro",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "left"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "point",
+          "expression": "curious",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "no going out, oh no!",
+      "depth": "mid",
+      "storyBeat": "problem",
+      "cause": "points at window",
+      "effect": "turns toward door",
+      "cutMotivation": "look",
+      "actionPhase": "followthrough",
+      "exitDir": "right",
+      "enterDir": "left",
+      "objective": "March inside because rain",
+      "startSec": 8.824,
+      "endSec": 13.235
+    },
+    {
+      "id": "04_intro",
+      "location": "doorway",
+      "section": "Intro",
+      "camera": "medium",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stand",
+          "expression": "curious",
+          "facing": "three_quarter_right"
+        }
+      ],
+      "lyricHint": "no going out, oh no!",
+      "depth": "mid",
+      "storyBeat": "problem",
+      "cause": "turns toward door",
+      "effect": "steps toward doorway",
+      "cutMotivation": "exit",
+      "actionPhase": "anticipate",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 13.235,
+      "endSec": 17.647
+    },
+    {
+      "id": "05_intro",
+      "location": "hallway",
+      "section": "Intro",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "right"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stand",
+          "expression": "curious",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "no going out, oh no!",
+      "depth": "mid",
+      "storyBeat": "problem",
+      "cause": "steps toward doorway",
+      "effect": "enters hallway",
+      "cutMotivation": "match_action",
+      "actionPhase": "action",
+      "exitDir": "left",
+      "enterDir": "right",
+      "objective": "March inside because rain",
+      "startSec": 17.647,
+      "endSec": 22.059
+    },
+    {
+      "id": "06_verse1",
+      "location": "home",
+      "section": "Verse1",
+      "camera": "medium",
+      "placement": {
+        "Adam": "left"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "point",
+          "expression": "curious",
+          "facing": "three_quarter_left"
+        }
+      ],
+      "lyricHint": "Adam sees the door",
+      "depth": "mid",
+      "storyBeat": "discovery",
+      "cause": "enters hallway",
+      "effect": "turns back to home",
+      "cutMotivation": "look",
+      "actionPhase": "anticipate",
+      "exitDir": "right",
+      "enterDir": "left",
+      "objective": "March inside because rain",
+      "startSec": 22.059,
+      "endSec": 26.471
+    },
+    {
+      "id": "07_verse1",
+      "location": "home",
+      "section": "Verse1",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "point",
+          "expression": "curious",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "Adam sees the door",
+      "depth": "mid",
+      "storyBeat": "discovery",
+      "cause": "turns back to home",
+      "effect": "points at the door",
+      "cutMotivation": "point",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 26.471,
+      "endSec": 30.882
+    },
+    {
+      "id": "08_verse1",
+      "location": "home",
+      "section": "Verse1",
+      "camera": "medium",
+      "placement": {
+        "Adam": "right"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "walk",
+          "expression": "curious",
+          "facing": "three_quarter_right"
+        }
+      ],
+      "lyricHint": "Let's march once more!",
+      "depth": "mid",
+      "storyBeat": "discovery",
+      "cause": "points at the door",
+      "effect": "says, 'Let's march once more!'",
+      "cutMotivation": "match_action",
+      "actionPhase": "followthrough",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 30.882,
+      "endSec": 35.294
+    },
+    {
+      "id": "09_chorus",
+      "location": "home",
+      "section": "Chorus",
+      "camera": "full_body",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stomp",
+          "expression": "happy",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "stomp, stomp on the floor below!",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "says, 'Let's march once more!'",
+      "effect": "starts to stomp",
+      "cutMotivation": "energy",
+      "actionPhase": "anticipate",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 35.294,
+      "endSec": 39.706
+    },
+    {
+      "id": "10_chorus",
+      "location": "home",
+      "section": "Chorus",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "stomp",
+          "expression": "happy",
+          "facing": "three_quarter_left"
+        }
+      ],
+      "lyricHint": "stomp, stomp on the floor below!",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "starts to stomp",
+      "effect": "stomps on the floor",
+      "cutMotivation": "match_action",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 39.706,
+      "endSec": 44.118
+    },
+    {
+      "id": "11_chorus",
+      "location": "home",
+      "section": "Chorus",
+      "camera": "full_body",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "walk",
+          "expression": "happy",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "stomp, stomp on the floor below!",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "stomps on the floor",
+      "effect": "claps hands",
+      "cutMotivation": "match_action",
+      "actionPhase": "followthrough",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 44.118,
+      "endSec": 48.529
+    },
+    {
+      "id": "12_chorus",
+      "location": "hallway",
+      "section": "Chorus",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "right"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "walk",
+          "expression": "happy",
+          "facing": "three_quarter_right"
+        }
+      ],
+      "lyricHint": "through the door",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "claps hands",
+      "effect": "opens toward kitchen",
+      "cutMotivation": "exit",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "bridge": true,
+      "objective": "March inside because rain",
+      "startSec": 48.529,
+      "endSec": 52.941
+    },
+    {
+      "id": "13_verse2",
+      "location": "kitchen",
+      "section": "Verse2",
+      "camera": "full_body",
+      "placement": {
+        "Adam": "left"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "hands_up",
+          "expression": "happy",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "marches past the table",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "comes through hallway",
+      "effect": "walks into kitchen",
+      "cutMotivation": "exit",
+      "actionPhase": "anticipate",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 52.941,
+      "endSec": 57.353
+    },
+    {
+      "id": "14_verse2",
+      "location": "kitchen",
+      "section": "Verse2",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "right"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "walk",
+          "expression": "happy",
+          "facing": "three_quarter_left"
+        }
+      ],
+      "lyricHint": "marches past the table",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "walks into kitchen",
+      "effect": "points at the table",
+      "cutMotivation": "point",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 57.353,
+      "endSec": 61.765
+    },
+    {
+      "id": "15_verse2",
+      "location": "doorway",
+      "section": "Verse2",
+      "camera": "full_body",
+      "placement": {
+        "Adam": "left"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "walk",
+          "expression": "happy",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "through the door",
+      "depth": "mid",
+      "storyBeat": "fun",
+      "cause": "points at the table",
+      "effect": "opens toward lawn",
+      "cutMotivation": "exit",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "bridge": true,
+      "objective": "March inside because rain",
+      "startSec": 61.765,
+      "endSec": 66.176
+    },
+    {
+      "id": "16_outro",
+      "location": "lawn",
+      "section": "Outro",
+      "camera": "medium_full",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "hands_up",
+          "expression": "happy",
+          "facing": "three_quarter_right"
+        }
+      ],
+      "lyricHint": "sun comes out",
+      "depth": "near",
+      "storyBeat": "celebration",
+      "cause": "comes through doorway",
+      "effect": "exits to the lawn",
+      "cutMotivation": "exit",
+      "actionPhase": "anticipate",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 66.176,
+      "endSec": 70.588
+    },
+    {
+      "id": "17_outro",
+      "location": "lawn",
+      "section": "Outro",
+      "camera": "full_body",
+      "placement": {
+        "Adam": "center"
+      },
+      "characters": [
+        {
+          "name": "Adam",
+          "pose": "hands_up",
+          "expression": "happy",
+          "facing": "front"
+        }
+      ],
+      "lyricHint": "sun comes out",
+      "depth": "near",
+      "storyBeat": "celebration",
+      "cause": "exits to the lawn",
+      "effect": "spreads arms wide",
+      "cutMotivation": "energy",
+      "actionPhase": "action",
+      "exitDir": "center",
+      "enterDir": "center",
+      "objective": "March inside because rain",
+      "startSec": 70.588,
+      "endSec": 75
+    }
+  ],
+  "durationSec": 75,
+  "kidsHit": true,
+  "objective": "March inside because rain",
+  "mood": "energetic",
+  "theme": "rainy day indoor march"
+}

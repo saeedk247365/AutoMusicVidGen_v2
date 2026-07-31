@@ -28,6 +28,7 @@
  *   --song batches/<date>/<slug> --keyframes-only   (regen stills; normalizes actions.json)
  *   --song … --keyframes-only --replan               (re-run Qwen beats from lyrics.txt)
  *   --song … --keyframes-only --force --reuse-cutouts (re-layout scale/placement only)
+ *   --kids-hit   opt-in: 75s home songs, timed dense beats (classic defaults unchanged)
  */
 import { mkdir, writeFile, readFile, copyFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
@@ -56,6 +57,31 @@ import {
   removePlateBackground,
   resolveCharacterLayout,
 } from "../lib/composite.js";
+import {
+  HOME_THEMES,
+  KIDS_HIT_DURATION_SEC,
+  KIDS_HIT_BEAT_MIN,
+  KIDS_HIT_BEAT_MAX,
+  KIDS_HIT_CAPTION_TEMPLATE,
+  KIDS_HIT_LYRICS_PROMPT,
+  KIDS_HIT_SCENES_PROMPT,
+  KIDS_HIT_STYLES,
+  assignBeatTimings,
+  locationFromLyricHint,
+  fillKidsHitPrompt,
+  kidsHitMood,
+  kidsHitDefaultLocation,
+  kidsHitLocationPalette,
+  kidsHitMovementForTheme,
+  kidsHitStyleForMood,
+  lyricsHaveProblems,
+  normalizeKidsLyricsText,
+  shortenKidsLyricLines,
+  inferKidsHitThemeFromLyrics,
+  repairKidsHitBeats,
+  objectiveForTheme,
+  validateContinuity,
+} from "../lib/kids-hit.js";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -145,12 +171,15 @@ const EDUCATIONAL_FOCUS = [
 const MOVEMENT_PROMPTS = [
   "clap",
   "stomp",
-  "tiptoe",
   "wave",
-  "stretch",
-  "spin",
-  "march",
   "hop",
+  "stretch",
+  "march",
+  "wash",
+  "spin",
+  "freeze",
+  "twirl",
+  "tiptoe",
   "reach up high",
   "tap toes",
 ];
@@ -347,9 +376,14 @@ const CANONICAL_POSES = {
   walk:
     "mid-stride walk, left leg forward, right arm forward, right leg back, left arm back",
   wave: "standing, one arm raised waving, other arm at side",
-  point: "standing, one arm extended pointing forward, other arm at side",
+  point:
+    "standing, one arm extended pointing forward toward sink or object, other arm at side, clear pointing pose",
   hands_up: "standing, both arms raised above head, elbows soft",
-  clap: "standing, both hands together in front of chest clapping",
+  clap: "standing, both hands pressed together mid-clap in front of chest, palms touching clearly, elbows out, happy clap pose",
+  stomp:
+    "standing, one knee lifted mid-stomp, opposite foot planted, arms bent for balance",
+  tiptoe:
+    "standing on tiptoes, heels raised off the floor, quiet careful balance, arms slightly out",
 };
 
 const CANONICAL_CAMERAS = {
@@ -394,12 +428,15 @@ function normalizePoseId(raw) {
     .trim()
     .replace(/[\s-]+/g, "_");
   if (CANONICAL_POSES[s]) return s;
+  if (/tiptoe|tip.?toe|tip toe/.test(s)) return "tiptoe";
+  if (/stomp|march|stamp/.test(s)) return "stomp";
   if (/kneel/.test(s)) return "kneel";
   if (/clap/.test(s)) return "clap";
   if (/wave/.test(s)) return "wave";
   if (/point/.test(s)) return "point";
   if (/\bsit|sitting/.test(s)) return "sit";
-  if (/hands_?up|arms_?up|arms raised|hands raised/.test(s)) return "hands_up";
+  if (/hands_?up|arms_?up|arms raised|hands raised|stretch|yawn/.test(s))
+    return "hands_up";
   if (/run|walk|stride|jump|climb|slid|crawl|lean|mid.?stride/.test(s)) return "walk";
   if (/stand|still|sway|arms at sides/.test(s)) return "stand";
   return "stand";
@@ -732,20 +769,35 @@ function parseTitleAndLyrics(raw) {
   let title = titleMatch?.[1]?.trim() || "";
   title = title.replace(/^["']|["']$/g, "").trim();
 
+  const objectiveMatch = /OBJECTIVE:\s*(.+)/i.exec(text);
+  let objective = objectiveMatch?.[1]?.trim() || "";
+  objective = objective.replace(/^["']|["']$/g, "").trim();
+
   let lyrics = "";
   const lyricsMatch = /LYRICS:\s*([\s\S]*)/i.exec(text);
   if (lyricsMatch) lyrics = lyricsMatch[1].trim();
   else {
-    const section = text.search(/\[Intro\]|\[Verse/i);
+    const section = text.search(/\[Intro\]|\[Verse|Intro:|Verse\s*1:/i);
     if (section >= 0) lyrics = text.slice(section).trim();
   }
   lyrics = lyrics.replace(/\n(?:Note:|Notes:|Explanation:)[\s\S]*$/i, "").trim();
+
+  // Normalize bare section headers → [Section]
+  lyrics = lyrics
+    .replace(/^(Intro)\s*:/gim, "[Intro]")
+    .replace(/^(Verse\s*1)\s*:/gim, "[Verse 1]")
+    .replace(/^(Verse\s*2)\s*:/gim, "[Verse 2]")
+    .replace(/^(Chorus)\s*:/gim, "[Chorus]")
+    .replace(/^(Bridge)\s*:/gim, "[Bridge]")
+    .replace(/^(Outro|Final Chorus)\s*:/gim, "[$1]")
+    .replace(/\(beatboxing\)\s*/gi, "")
+    .trim();
 
   if (!title) title = `Nursery Song ${Date.now()}`;
   if (!lyrics || !/\[(Intro|Verse|Chorus)/i.test(lyrics)) {
     throw new Error(`Could not parse lyrics:\n${text.slice(0, 400)}`);
   }
-  return { title, lyrics };
+  return { title, lyrics, objective };
 }
 
 function normalizeLocation(raw, allowedLocations, beatIndex) {
@@ -790,7 +842,41 @@ function normalizeLocation(raw, allowedLocations, beatIndex) {
   return fallback;
 }
 
-function parseBeatsJson(raw, allowedLocations) {
+function repairLooseJson(text) {
+  let s = String(text || "");
+  // Strip trailing commas before } or ]
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  // If truncated mid-array/object, close open brackets from the last complete beat
+  const lastBeat = s.lastIndexOf('},');
+  if (lastBeat > 0 && !/"beats"\s*:\s*\[[\s\S]*\]/.test(s)) {
+    // Find end of last complete object in beats array
+    let cut = s;
+    const beatsIdx = cut.indexOf('"beats"');
+    if (beatsIdx >= 0) {
+      const arrStart = cut.indexOf("[", beatsIdx);
+      if (arrStart >= 0) {
+        let depth = 0;
+        let lastComplete = -1;
+        for (let i = arrStart; i < cut.length; i++) {
+          const ch = cut[i];
+          if (ch === "{" || ch === "[") depth++;
+          else if (ch === "}" || ch === "]") {
+            depth--;
+            if (depth === 1 && ch === "}") lastComplete = i;
+            if (depth === 0) break;
+          }
+        }
+        if (lastComplete > 0 && depth > 0) {
+          cut = cut.slice(0, lastComplete + 1) + "]}";
+          s = cut;
+        }
+      }
+    }
+  }
+  return s;
+}
+
+function parseBeatsJson(raw, allowedLocations, opts = {}) {
   const text = stripThink(raw)
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
@@ -798,21 +884,39 @@ function parseBeatsJson(raw, allowedLocations) {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end < 0) throw new Error("No JSON object in scene plan");
-  const data = JSON.parse(text.slice(start, end + 1));
-  return normalizeBeatPlan(data, allowedLocations);
+  let slice = text.slice(start, end + 1);
+  try {
+    const data = JSON.parse(slice);
+    return normalizeBeatPlan(data, allowedLocations, opts);
+  } catch (err) {
+    const repaired = repairLooseJson(slice);
+    try {
+      const data = JSON.parse(repaired);
+      console.warn("  beat JSON repaired (trailing commas / truncation)");
+      return normalizeBeatPlan(data, allowedLocations, opts);
+    } catch {
+      throw err;
+    }
+  }
 }
 
 /**
  * Normalize Qwen / legacy actions.json into frozen-frame schema:
  * camera + location + placement + characters[{name,pose,expression,facing}]
+ * Timing fields (startSec/endSec/lyricHint) kept when present (additive).
+ * When opts.kidsHit, timings are assigned/repaired to cover durationSec.
  */
-function normalizeBeatPlan(data, allowedLocations) {
+function normalizeBeatPlan(data, allowedLocations, opts = {}) {
   if (!Array.isArray(data?.beats) || data.beats.length === 0) {
     throw new Error("Scene plan missing beats[]");
   }
-  const beats = data.beats.map((b, i) => {
-    const loc = normalizeLocation(b.location, allowedLocations, i);
+  let beats = data.beats.map((b, i) => {
+    let loc = normalizeLocation(b.location, allowedLocations, i);
     const camera = normalizeCameraId(b.camera);
+    const lyricHint =
+      b.lyricHint != null && String(b.lyricHint).trim()
+        ? String(b.lyricHint).trim()
+        : undefined;
 
     // Prefer structured characters[]; migrate legacy string[] + keyframes[]
     let charObjs = [];
@@ -873,9 +977,16 @@ function normalizeBeatPlan(data, allowedLocations) {
     charObjs = charObjs.slice(0, 1);
     charObjs[0].name = "Adam";
 
-    const placement = { Adam: "center" };
+    const rawSlot =
+      b.placement?.Adam ||
+      b.placement?.adam ||
+      (typeof b.characters?.[0] === "object" && b.characters[0].placement) ||
+      "center";
+    const placement = {
+      Adam: normalizePlacementSlot(rawSlot, "center"),
+    };
 
-    return {
+    const out = {
       id: String(b.id || `${String(i + 1).padStart(2, "0")}_${loc}`),
       location: loc,
       section: b.section || "",
@@ -883,8 +994,66 @@ function normalizeBeatPlan(data, allowedLocations) {
       placement,
       characters: charObjs,
     };
+    if (lyricHint) out.lyricHint = lyricHint;
+    if (Number.isFinite(Number(b.startSec))) out.startSec = Number(b.startSec);
+    if (Number.isFinite(Number(b.endSec))) out.endSec = Number(b.endSec);
+    const depth = String(b.depth || "").toLowerCase();
+    if (depth === "near" || depth === "mid" || depth === "far") out.depth = depth;
+    const story = String(b.storyBeat || "").toLowerCase();
+    if (
+      story === "problem" ||
+      story === "discovery" ||
+      story === "fun" ||
+      story === "celebration"
+    ) {
+      out.storyBeat = story;
+    }
+    for (const key of [
+      "cause",
+      "effect",
+      "cutMotivation",
+      "actionPhase",
+      "exitDir",
+      "enterDir",
+    ]) {
+      if (b[key]) out[key] = String(b[key]);
+    }
+    if (b.bridge === true) out.bridge = true;
+    return out;
   });
-  return { beats };
+
+  const result = { beats };
+  if (data.durationSec != null && Number.isFinite(Number(data.durationSec))) {
+    result.durationSec = Number(data.durationSec);
+  }
+  if (data.kidsHit === true) result.kidsHit = true;
+  if (data.objective) result.objective = String(data.objective);
+
+  if (opts.kidsHit) {
+    const dur =
+      Number(opts.durationSec) ||
+      result.durationSec ||
+      KIDS_HIT_DURATION_SEC;
+    const theme = opts.theme || "";
+    result.beats = repairKidsHitBeats(beats, {
+      theme,
+      allowedLocations,
+      durationSec: dur,
+    });
+    result.durationSec = dur;
+    result.kidsHit = true;
+    result.mood = kidsHitMood(theme);
+    result.theme = theme || undefined;
+    result.objective =
+      result.objective || opts.objective || objectiveForTheme(theme);
+    for (const b of result.beats) b.objective = result.objective;
+    const issues = validateContinuity(result);
+    if (issues.length) {
+      console.warn(`  continuity notes: ${issues.join(", ")}`);
+    }
+  }
+
+  return result;
 }
 
 async function ollamaChat(model, temperature, system, user, numPredict = 1800) {
@@ -897,7 +1066,9 @@ async function ollamaChat(model, temperature, system, user, numPredict = 1800) {
   }, 15000);
 
   const controller = new AbortController();
-  const kill = setTimeout(() => controller.abort(), 300000); // 5 min
+  // Beat JSON with qwen3:14b often needs >5 min after a heavy ACE run.
+  const timeoutMs = 720000; // 12 min
+  const kill = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(`${OLLAMA_URL}/api/chat`, {
@@ -924,7 +1095,9 @@ async function ollamaChat(model, temperature, system, user, numPredict = 1800) {
     return data?.message?.content || data?.response || "";
   } catch (err) {
     if (err?.name === "AbortError") {
-      throw new Error(`${label} timed out after 5 minutes — is the model loaded?`);
+      throw new Error(
+        `${label} timed out after ${Math.round(timeoutMs / 60000)} minutes — is the model loaded?`,
+      );
     }
     throw err;
   } finally {
@@ -938,57 +1111,129 @@ async function qwenGenerateLyrics(model, temperature, ctx) {
     ctx.usedTitles.length > 0
       ? ctx.usedTitles.map((t) => `- ${t}`).join("\n")
       : "- (none yet)";
-  const prompt = QWEN_LYRICS_PROMPT.replaceAll("{{THEME}}", ctx.theme)
+  const mood = ctx.kidsHit ? kidsHitMood(ctx.theme) : "energetic";
+  const template = ctx.kidsHit ? KIDS_HIT_LYRICS_PROMPT : QWEN_LYRICS_PROMPT;
+  const prompt = template
+    .replaceAll("{{THEME}}", ctx.theme)
     .replaceAll("{{EDU_FOCUS}}", ctx.eduFocus)
     .replaceAll("{{MOVEMENT}}", ctx.movement)
-    .replaceAll("{{USED_TITLES}}", used);
-  const content = await ollamaChat(
-    model,
-    temperature,
-    "You are a world-class preschool songwriter. Follow the user format exactly. Output only TITLE and LYRICS.",
-    prompt,
-    1800,
-  );
-  return parseTitleAndLyrics(content);
+    .replaceAll("{{USED_TITLES}}", used)
+    .replaceAll("{{MOOD}}", mood);
+  const system = ctx.kidsHit
+    ? "You are a preschool hit songwriter. Follow the user format exactly. Output only TITLE and LYRICS. Keep the song short, concrete rhymes only, home-set. Never write nonsense end-words."
+    : "You are a world-class preschool songwriter. Follow the user format exactly. Output only TITLE and LYRICS.";
+
+  let last = null;
+  const tries = ctx.kidsHit ? 5 : 1;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const retryHint =
+        ctx.kidsHit && attempt > 1
+          ? `\n\nRETRY ${attempt}: EVERY lyric line MUST be 6 words or fewer. Example good lines:\nClap clap clap.\nWash hands now.\nWalk to the table.\nPlease and thank you.\nNo filler rhymes like gap/grump/pain/trap.`
+          : "";
+      const content = await ollamaChat(
+        model,
+        temperature,
+        system,
+        prompt + retryHint,
+        1800,
+      );
+      last = parseTitleAndLyrics(content);
+      last.lyrics = shortenKidsLyricLines(
+        normalizeKidsLyricsText(last.lyrics),
+        6,
+      );
+      last.title = normalizeKidsLyricsText(last.title);
+      if (!ctx.kidsHit) return last;
+      const issues = lyricsHaveProblems(last.lyrics);
+      if (!issues.length) return last;
+      console.warn(
+        `  lyrics QA failed (attempt ${attempt}/${tries}): ${issues.join(", ")} — retrying`,
+      );
+    } catch (err) {
+      console.warn(
+        `  lyrics parse failed (attempt ${attempt}/${tries}): ${err.message?.slice(0, 120)} — retrying`,
+      );
+      if (attempt === tries) throw err;
+    }
+  }
+  if (ctx.kidsHit && last) {
+    const leftover = lyricsHaveProblems(last.lyrics);
+    if (leftover.length) {
+      throw new Error(`lyrics QA still failing after ${tries} tries: ${leftover.join(", ")}`);
+    }
+  }
+  return last;
 }
 
 async function qwenGenerateBeats(model, temperature, ctx) {
-  const prompt = QWEN_SCENES_PROMPT.replaceAll("{{TITLE}}", ctx.title)
-    .replaceAll("{{THEME}}", ctx.theme)
-    .replaceAll("{{LYRICS}}", ctx.lyrics)
-    .replaceAll("{{LOCATIONS}}", ctx.locations.map((l) => `- ${l}`).join("\n"))
-    .replaceAll(
-      "{{CAMERAS}}",
-      Object.keys(CANONICAL_CAMERAS)
-        .map((c) => `- ${c}`)
-        .join("\n"),
-    )
-    .replaceAll(
-      "{{POSES}}",
-      Object.keys(CANONICAL_POSES)
-        .map((p) => `- ${p}`)
-        .join("\n"),
-    )
-    .replaceAll(
-      "{{EXPRESSIONS}}",
-      Object.keys(CANONICAL_EXPRESSIONS)
-        .map((e) => `- ${e}`)
-        .join("\n"),
-    )
-    .replaceAll(
-      "{{FACINGS}}",
-      Object.keys(CANONICAL_FACINGS)
-        .map((f) => `- ${f}`)
-        .join("\n"),
-    );
-  const content = await ollamaChat(
-    model,
-    temperature,
-    "You plan frozen preschool cartoon storyboard stills. Output valid JSON only. Use only allowed pose/camera/expression/facing ids. No storytelling. No lookAt.",
-    prompt,
-    2200,
-  );
-  return parseBeatsJson(content, ctx.locations);
+  const listBlock = (obj) =>
+    Object.keys(obj)
+      .map((k) => `- ${k}`)
+      .join("\n");
+
+  let prompt;
+  if (ctx.kidsHit) {
+    const mood = kidsHitMood(ctx.theme);
+    const palette = kidsHitLocationPalette(ctx.theme, ctx.locations);
+    const defLoc = palette[0] || kidsHitDefaultLocation(ctx.theme, ctx.locations);
+    prompt = fillKidsHitPrompt(KIDS_HIT_SCENES_PROMPT, {
+      TITLE: ctx.title,
+      THEME: ctx.theme,
+      LYRICS: ctx.lyrics,
+      LOCATIONS: palette.map((l) => `- ${l}`).join("\n"),
+      CAMERAS: listBlock(CANONICAL_CAMERAS),
+      POSES: listBlock(CANONICAL_POSES),
+      EXPRESSIONS: listBlock(CANONICAL_EXPRESSIONS),
+      FACINGS: listBlock(CANONICAL_FACINGS),
+      DURATION_SEC: String(ctx.durationSec || KIDS_HIT_DURATION_SEC),
+      BEAT_MIN: String(KIDS_HIT_BEAT_MIN),
+      BEAT_MAX: String(KIDS_HIT_BEAT_MAX),
+      MOOD: mood,
+      DEFAULT_LOCATION: defLoc,
+      OBJECTIVE: ctx.objective || objectiveForTheme(ctx.theme),
+    });
+  } else {
+    prompt = QWEN_SCENES_PROMPT.replaceAll("{{TITLE}}", ctx.title)
+      .replaceAll("{{THEME}}", ctx.theme)
+      .replaceAll("{{LYRICS}}", ctx.lyrics)
+      .replaceAll("{{LOCATIONS}}", ctx.locations.map((l) => `- ${l}`).join("\n"))
+      .replaceAll("{{CAMERAS}}", listBlock(CANONICAL_CAMERAS))
+      .replaceAll("{{POSES}}", listBlock(CANONICAL_POSES))
+      .replaceAll("{{EXPRESSIONS}}", listBlock(CANONICAL_EXPRESSIONS))
+      .replaceAll("{{FACINGS}}", listBlock(CANONICAL_FACINGS));
+  }
+
+  const system = ctx.kidsHit
+    ? "You plan a continuous preschool adventure storyboard. Output valid JSON only. Every beat needs cause/effect, cutMotivation, actionPhase, exitDir/enterDir. Never teleport rooms without a doorway beat. Include startSec/endSec/lyricHint/storyBeat. Keep strings short."
+    : "You plan frozen preschool cartoon storyboard stills. Output valid JSON only. Use only allowed pose/camera/expression/facing ids. No storytelling. No lookAt.";
+
+  const tries = ctx.kidsHit ? 3 : 1;
+  let lastErr;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const content = await ollamaChat(
+        model,
+        temperature,
+        system,
+        prompt,
+        ctx.kidsHit ? 4800 : 2200,
+      );
+      return parseBeatsJson(content, ctx.locations, {
+        kidsHit: !!ctx.kidsHit,
+        durationSec: ctx.durationSec,
+        theme: ctx.theme,
+        objective: ctx.objective || "",
+      });
+    } catch (err) {
+      lastErr = err;
+      console.warn(
+        `  beat plan failed (attempt ${attempt}/${tries}): ${String(err.message || err).slice(0, 140)}`,
+      );
+      if (attempt === tries) throw lastErr;
+    }
+  }
+  throw lastErr;
 }
 
 function runPython(args, timeoutMs) {
@@ -1161,7 +1406,7 @@ async function generateSongKeyframes(
   songDir,
   plan,
   sharedScenesDir,
-  { force = false, reuseCutouts = false } = {},
+  { force = false, reuseCutouts = false, kidsHit = false } = {},
 ) {
   const scenesDir = join(songDir, "scenes");
   const keyframesDir = join(songDir, "keyframes");
@@ -1180,7 +1425,11 @@ async function generateSongKeyframes(
   }
 
   const allowedLocations = (scenePack.scenes || []).map((s) => s.id);
-  const planNorm = normalizeBeatPlan(plan, allowedLocations);
+  const planNorm = normalizeBeatPlan(plan, allowedLocations, {
+    kidsHit: kidsHit || plan?.kidsHit === true,
+    durationSec: plan?.durationSec,
+    theme: plan?.theme || "",
+  });
   await writeFile(
     join(scenesDir, "actions.json"),
     JSON.stringify(planNorm, null, 2),
@@ -1237,6 +1486,7 @@ async function generateSongKeyframes(
       camera: frame.camera || beat.camera,
       pose: frame.pose,
       slot: frame.placement || "center",
+      depth: beat.depth || frame.depth || "mid",
     });
 
     let cutoutBuf;
@@ -1310,7 +1560,13 @@ async function generateSongKeyframes(
           skipRemoveBg: true,
         },
       ],
-      { width: canvasW, height: canvasH, removeBg: false },
+      {
+        width: canvasW,
+        height: canvasH,
+        removeBg: false,
+        featherEdges: !!kidsHit,
+        groundWash: false,
+      },
     );
     await writeFile(dest, finalBuf);
     try {
@@ -1343,7 +1599,6 @@ async function main() {
   const comfyUrl = characterRoot.comfyUrl || "http://127.0.0.1:8188";
 
   const count = Math.max(1, Number(flag("--count", String(SETTINGS.count))));
-  const duration = Number(flag("--duration", String(SETTINGS.duration)));
   const bpm = Number(flag("--bpm", String(SETTINGS.bpm)));
   const steps = Number(flag("--steps", String(SETTINGS.steps)));
   const qwenModel = flag("--qwen", SETTINGS.qwenModel);
@@ -1362,11 +1617,22 @@ async function main() {
   const skipAudio = has("--skip-audio");
   const keyframesOnly = has("--keyframes-only");
   const force = has("--force");
+  const kidsHit = has("--kids-hit");
   const songArg = flag("--song", null);
+
+  const duration = has("--duration")
+    ? Number(flag("--duration", String(SETTINGS.duration)))
+    : kidsHit
+      ? KIDS_HIT_DURATION_SEC
+      : SETTINGS.duration;
 
   const { cast, scenes: scenePack } = await loadFamilyCast();
   const sharedCharsDir = CHARACTERS_DIR;
   const sharedScenesDir = SCENES_DIR;
+
+  if (kidsHit) {
+    console.log(`Kids-hit mode ON (duration=${duration}s, home themes, timed beats)`);
+  }
 
   // Regen keyframes for an existing song (keep mp3; normalize or replan actions.json)
   if (keyframesOnly) {
@@ -1395,15 +1661,57 @@ async function main() {
         songDir.split(/[/\\]/).pop()?.replace(/-/g, " ") ||
         "Song";
       const lyricsBody = lyricsRaw.replace(/^TITLE:.*$/im, "").trim() || lyricsRaw;
+      let theme = flag("--theme", null);
+      const metaPath = join(songDir, "kids-hit-meta.json");
+      if (!theme && existsSync(metaPath)) {
+        try {
+          const meta = JSON.parse(stripBom(await readFile(metaPath, "utf8")));
+          theme = meta.theme || null;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!theme) {
+        theme = kidsHit
+          ? inferKidsHitThemeFromLyrics(lyricsBody)
+          : "family";
+      }
       console.log("Adam-only pipeline — keyframes-only + replan");
       console.log(`song: ${songDir}`);
+      console.log(`theme: ${theme}${kidsHit ? ` → loc ${kidsHitDefaultLocation(theme, locations)}` : ""}`);
       console.log("Replanning frozen beats with Qwen…");
       plan = await qwenGenerateBeats(qwenModel, SETTINGS.qwenTemperature, {
         title,
-        theme: "family",
+        theme,
         lyrics: lyricsBody,
         locations,
+        kidsHit,
+        durationSec: duration,
+        objective:
+          (/^OBJECTIVE:\s*(.+)$/im.exec(lyricsRaw)?.[1] || "").trim() ||
+          (kidsHit ? objectiveForTheme(theme) : ""),
       });
+      plan.theme = theme;
+      plan.mood = kidsHit ? kidsHitMood(theme) : undefined;
+      if (kidsHit) {
+        plan.objective = plan.objective || objectiveForTheme(theme);
+        await writeFile(
+          metaPath,
+          JSON.stringify(
+            {
+              theme,
+              mood: plan.mood,
+              objective: plan.objective,
+              durationSec: duration,
+              kidsHit: true,
+              title,
+            },
+            null,
+            2,
+          ),
+          "utf8",
+        );
+      }
     } else {
       if (!existsSync(actionsPath)) {
         throw new Error(
@@ -1419,8 +1727,9 @@ async function main() {
     const reuseCutouts = has("--reuse-cutouts");
     await freeComfyVram(comfyUrl);
     // Refresh empty rooms unless we're only re-laying existing cutouts
+    // Missing doorway/hallway/etc. are generated without force (skip existing stills)
     await ensureScenes(comfyUrl, characterRoot, scenePack, sharedScenesDir, {
-      force: !reuseCutouts,
+      force: !reuseCutouts && has("--force"),
     });
     await generateSongKeyframes(
       comfyUrl,
@@ -1430,12 +1739,16 @@ async function main() {
       songDir,
       plan,
       sharedScenesDir,
-      { force: true, reuseCutouts },
+      { force: true, reuseCutouts, kidsHit: kidsHit || plan?.kidsHit === true },
     );
     const rel = relative(ROOT, songDir).replace(/\\/g, "/");
     console.log("\n────────────────────────────────────────────────────────");
     console.log(" Next — animate keyframes (Wan 2.2):");
-    console.log(`  node scripts/02_1_animate-keyframes.js --song ${rel}`);
+    console.log(
+      kidsHit
+        ? `  node scripts/02_1_animate-keyframes.js --song ${rel} --kids-hit`
+        : `  node scripts/02_1_animate-keyframes.js --song ${rel}`,
+    );
     console.log("────────────────────────────────────────────────────────");
     return;
   }
@@ -1445,7 +1758,7 @@ async function main() {
   await mkdir(sharedCharsDir, { recursive: true });
   await mkdir(sharedScenesDir, { recursive: true });
 
-  console.log("Adam-only nursery pipeline");
+  console.log(kidsHit ? "Adam-only kids-hit pipeline" : "Adam-only nursery pipeline");
   console.log(`batch: ${batchDir}`);
 
   try {
@@ -1465,6 +1778,7 @@ async function main() {
 
   await freeComfyVram(comfyUrl);
   await ensureCharacters(comfyUrl, characterRoot, cast, sharedCharsDir);
+  // New scene ids (doorway, hallway, kitchen_sink) generate when missing; --force regenerates all
   await ensureScenes(comfyUrl, characterRoot, scenePack, sharedScenesDir, {
     force: force || scenesOnly,
   });
@@ -1486,44 +1800,66 @@ async function main() {
 
   const usedTitles = [];
   const usedSlugs = new Set();
-  const batchThemes = takeUnique(THEMES, count);
-  while (batchThemes.length < count) batchThemes.push(pick(THEMES));
+  const themePool = kidsHit ? HOME_THEMES : THEMES;
+  const batchThemes = takeUnique(themePool, count);
+  while (batchThemes.length < count) batchThemes.push(pick(themePool));
   const locations = scenePack.scenes.map((s) => s.id);
 
   for (let i = 1; i <= count; i++) {
     console.log(`\n══ Song ${i}/${count}`);
     const theme = batchThemes[i - 1];
-    const style = pick(STYLES);
+    const mood = kidsHit ? kidsHitMood(theme) : "energetic";
+    const style = kidsHit
+      ? kidsHitStyleForMood(mood, KIDS_HIT_STYLES)
+      : pick(STYLES);
     const eduFocus = pick(EDUCATIONAL_FOCUS);
-    const movement = pick(MOVEMENT_PROMPTS);
-    const entry = { index: i, theme, style, eduFocus, movement, ok: false };
+    const movement = kidsHit
+      ? kidsHitMovementForTheme(theme)
+      : pick(MOVEMENT_PROMPTS);
+    const entry = {
+      index: i,
+      theme,
+      style,
+      eduFocus,
+      movement,
+      mood,
+      kidsHit: !!kidsHit,
+      ok: false,
+    };
 
     let title;
     let lyrics;
+    let objective = "";
     let slug;
     let songDir;
     try {
       console.log(
-        `Qwen lyrics  theme=${theme}  style=${style}  edu=${eduFocus}  move=${movement}`,
+        `Qwen lyrics  theme=${theme}  style=${style}  edu=${eduFocus}  move=${movement}` +
+          (kidsHit ? `  mood=${mood}` : ""),
       );
       console.log("  (pipeline: lyrics → ACE song → beat plan → keyframes)");
-      ({ title, lyrics } = await qwenGenerateLyrics(qwenModel, SETTINGS.qwenTemperature, {
+      ({ title, lyrics, objective } = await qwenGenerateLyrics(qwenModel, SETTINGS.qwenTemperature, {
         theme,
         eduFocus,
         movement,
         usedTitles,
+        kidsHit,
       }));
+      if (kidsHit) objective = objective || objectiveForTheme(theme);
       usedTitles.push(title);
       slug = uniqueSlug(slugify(title), usedSlugs, batchDir);
       songDir = join(batchDir, slug);
       await mkdir(songDir, { recursive: true });
       await writeFile(
         join(songDir, "lyrics.txt"),
-        `TITLE: ${title}\n\n${lyrics}`,
+        kidsHit && objective
+          ? `TITLE: ${title}\nOBJECTIVE: ${objective}\n\n${lyrics}`
+          : `TITLE: ${title}\n\n${lyrics}`,
         "utf8",
       );
       entry.title = title;
       entry.slug = slug;
+      entry.objective = objective || undefined;
       entry.songDir = songDir;
       console.log(`Title: ${title}`);
     } catch (err) {
@@ -1538,10 +1874,10 @@ async function main() {
     // Song audio
     if (!skipAudio) {
       const dest = join(songDir, `${slug}.mp3`);
-      const caption = CAPTION_TEMPLATE.replaceAll("{{TITLE}}", title).replaceAll(
-        "{{STYLE}}",
-        style,
-      );
+      const captionTemplate = kidsHit ? KIDS_HIT_CAPTION_TEMPLATE : CAPTION_TEMPLATE;
+      const caption = captionTemplate
+        .replaceAll("{{TITLE}}", title)
+        .replaceAll("{{STYLE}}", style);
       const seed =
         baseSeed == null ? randomSeed() : (baseSeed + i - 1) >>> 0;
       entry.seed = seed;
@@ -1589,13 +1925,40 @@ async function main() {
 
     // Scene plan + keyframes
     try {
-      console.log("Qwen frozen beat plan…");
+      console.log(kidsHit ? "Qwen timed kids-hit beat plan…" : "Qwen frozen beat plan…");
       const plan = await qwenGenerateBeats(qwenModel, SETTINGS.qwenTemperature, {
         title,
         theme,
         lyrics,
         locations,
+        kidsHit,
+        durationSec: duration,
+        objective: kidsHit ? objective || objectiveForTheme(theme) : "",
       });
+      // Ensure theme travels into actions for motion mood + repair
+      plan.theme = theme;
+      plan.mood = kidsHit ? kidsHitMood(theme) : undefined;
+      if (kidsHit) {
+        plan.objective = plan.objective || objective || objectiveForTheme(theme);
+        await writeFile(
+          join(songDir, "kids-hit-meta.json"),
+          JSON.stringify(
+            {
+              theme,
+              mood: plan.mood,
+              style,
+              movement,
+              objective: plan.objective,
+              durationSec: duration,
+              kidsHit: true,
+              title,
+            },
+            null,
+            2,
+          ),
+          "utf8",
+        );
+      }
       entry.beats = plan.beats.length;
       console.log(`  ${plan.beats.length} beats — generating keyframe stills…`);
       await freeComfyVram(comfyUrl);
@@ -1607,6 +1970,7 @@ async function main() {
         songDir,
         plan,
         sharedScenesDir,
+        { kidsHit },
       );
       entry.ok = true;
       console.log(`Song package ready: ${songDir}`);
@@ -1632,14 +1996,22 @@ async function main() {
   if (ready.length) {
     console.log("\n────────────────────────────────────────────────────────");
     console.log(" Next — animate keyframes (Wan 2.2):");
+    const animFlag = kidsHit ? " --kids-hit" : "";
     for (const s of ready) {
       const rel = relative(ROOT, s.songDir).replace(/\\/g, "/");
-      console.log(`  node scripts/02_1_animate-keyframes.js --song ${rel}`);
+      console.log(`  node scripts/02_1_animate-keyframes.js --song ${rel}${animFlag}`);
     }
     if (ready.length > 1) {
       const batchRel = relative(ROOT, batchDir).replace(/\\/g, "/");
       console.log(" Or animate the whole batch:");
-      console.log(`  node scripts/02_1_animate-keyframes.js --batch ${batchRel}`);
+      console.log(`  node scripts/02_1_animate-keyframes.js --batch ${batchRel}${animFlag}`);
+    }
+    if (kidsHit) {
+      console.log(" Then stitch with loop-fill (no freeze pad):");
+      for (const s of ready) {
+        const rel = relative(ROOT, s.songDir).replace(/\\/g, "/");
+        console.log(`  node scripts/02_2_stitch-song.js --song ${rel} --loop-fill`);
+      }
     }
     console.log("────────────────────────────────────────────────────────");
   }

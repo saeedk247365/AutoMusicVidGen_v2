@@ -18,6 +18,8 @@
  *   --seed 123
  *   --force          overwrite existing clips
  *   --only 01,03     only keyframe filename prefixes / indices
+ *   --kids-hit       opt-in: energetic motion + default length 81 (classic defaults unchanged)
+ *   --energetic-motion   same motion prompts without changing length default
  *
  * Do NOT run while LoRA training is occupying the GPU.
  */
@@ -34,6 +36,13 @@ import {
   uploadImage,
   queueAndWait,
 } from "../lib/comfy-client.js";
+import {
+  KIDS_HIT_WAN_LENGTH,
+  KIDS_HIT_WAN_WIDTH,
+  KIDS_HIT_WAN_HEIGHT,
+  kidsHitMotionPrompt,
+  pickWanLength,
+} from "../lib/kids-hit.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { flag, has } = parseArgs();
@@ -256,7 +265,7 @@ function parseKeyframeName(stem) {
   return { index: m[1], beatId: m[2], charId: null };
 }
 
-function motionPromptFor(stem, actions) {
+function motionPromptFor(stem, actions, { kidsHit = false } = {}) {
   const { beatId, charId } = parseKeyframeName(stem);
   const POSE_MOTION = {
     stand: "standing still, tiny breath sway, arms at sides",
@@ -264,12 +273,14 @@ function motionPromptFor(stem, actions) {
     wave: "waving one hand gently",
     clap: "clapping hands slowly once or twice",
     walk: "walking in place, short steps",
+    tiptoe: "tiptoeing softly in place, heels raised",
     sit: "sitting, soft posture shift",
     hands_up: "arms raised, gentle bounce",
     point: "pointing arm held steady with tiny motion",
+    stomp: "light foot taps, small bounce",
   };
 
-  let parts = [];
+  let poseIds = [];
   let location = "";
   let camera = "";
   if (actions?.beats && beatId) {
@@ -291,25 +302,46 @@ function motionPromptFor(stem, actions) {
           const poseId = String(entry.pose || "stand")
             .toLowerCase()
             .replace(/[\s-]+/g, "_");
-          parts.push(
-            `${entry.name}: ${POSE_MOTION[poseId] || POSE_MOTION.stand}`,
-          );
+          poseIds.push(poseId);
         }
       } else {
-        // Legacy keyframes[]
         const frames = Array.isArray(beat.keyframes) ? beat.keyframes : [];
         const frame = frames.find(
           (f) => String(f.character || "").toLowerCase() === charId,
         );
         if (frame) {
-          const poseId = String(frame.pose || "stand")
-            .toLowerCase()
-            .replace(/[\s-]+/g, "_");
-          parts.push(POSE_MOTION[poseId] || POSE_MOTION.stand);
+          poseIds.push(
+            String(frame.pose || "stand")
+              .toLowerCase()
+              .replace(/[\s-]+/g, "_"),
+          );
         }
       }
     }
   }
+
+  if (kidsHit) {
+    const mood = actions?.mood || "energetic";
+    const beat = actions?.beats?.find((b) => b.id === beatId);
+    const beatIndex = actions?.beats?.findIndex((b) => b.id === beatId) ?? -1;
+    const prevBeat =
+      beatIndex > 0 ? actions.beats[beatIndex - 1] : null;
+    return kidsHitMotionPrompt({
+      poseIds: poseIds.length ? poseIds : ["stand"],
+      location,
+      camera,
+      mood,
+      lyricHint: beat?.lyricHint || "",
+      storyBeat: beat?.storyBeat || "",
+      actionPhase: beat?.actionPhase || "",
+      cutMotivation: beat?.cutMotivation || "",
+      bridge: !!beat?.bridge,
+      enterDir: beat?.enterDir || "",
+      prevBeat,
+    });
+  }
+
+  let parts = poseIds.map((poseId) => POSE_MOTION[poseId] || POSE_MOTION.stand);
   if (!parts.length) parts = ["gentle natural motion"];
 
   return [
@@ -335,7 +367,7 @@ function passesOnlyFilter(stem, onlySet) {
   return false;
 }
 
-async function animateSong(songDir, cfg, comfyUrl) {
+async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
   const keyframesDir = join(songDir, "keyframes");
   const clipsDir = join(songDir, "clips");
   await mkdir(clipsDir, { recursive: true });
@@ -355,6 +387,7 @@ async function animateSong(songDir, cfg, comfyUrl) {
   const manifest = {
     songDir,
     createdAt: new Date().toISOString(),
+    kidsHit: !!kidsHit,
     wan: {
       width: cfg.width,
       height: cfg.height,
@@ -366,12 +399,12 @@ async function animateSong(songDir, cfg, comfyUrl) {
   };
 
   console.log(`\nSong: ${songDir}`);
-  console.log(`Keyframes: ${files.length}`);
+  console.log(`Keyframes: ${files.length}${kidsHit ? " (kids-hit motion)" : ""}`);
 
   if (!files.length) {
     throw new Error(
       `No keyframe images in ${keyframesDir}\n` +
-        `Re-run 02_0 for this song (after fixing copyNewestOutput arg order), then retry 02_1.`,
+        `Re-run 02_0 for this song, then retry 02_1.`,
     );
   }
 
@@ -382,7 +415,22 @@ async function animateSong(songDir, cfg, comfyUrl) {
     n += 1;
     const src = join(keyframesDir, file);
     const dest = join(clipsDir, `${stem}.mp4`);
-    const motion = motionPromptFor(stem, actions);
+    const motion = motionPromptFor(stem, actions, { kidsHit });
+
+    let clipCfg = cfg;
+    if (kidsHit && !cfg.lengthLocked && actions?.beats) {
+      const { beatId } = parseKeyframeName(stem);
+      const beat = actions.beats.find((b) => b.id === beatId);
+      if (
+        beat &&
+        Number.isFinite(Number(beat.startSec)) &&
+        Number.isFinite(Number(beat.endSec))
+      ) {
+        const windowSec = Number(beat.endSec) - Number(beat.startSec);
+        const len = pickWanLength(windowSec, cfg.fps, cfg.length);
+        clipCfg = { ...cfg, length: len };
+      }
+    }
 
     if (existsSync(dest) && !has("--force")) {
       console.log(`  (${n}) ${stem} reuse`);
@@ -391,7 +439,7 @@ async function animateSong(songDir, cfg, comfyUrl) {
     }
 
     const outName = `kf_${stem}_${Date.now().toString(36)}`.replace(/[^\w.-]+/g, "_");
-    console.log(`  (${n}) ${stem} → Wan I2V`);
+    console.log(`  (${n}) ${stem} → Wan I2V length=${clipCfg.length}`);
     console.log(`      motion: ${motion.slice(0, 140)}…`);
 
     const buf = await readFile(src);
@@ -403,7 +451,7 @@ async function animateSong(songDir, cfg, comfyUrl) {
     await queueAndWait(
       comfyUrl,
       wanI2VWorkflow(
-        { ...cfg, outName },
+        { ...clipCfg, outName },
         uploaded.name,
         motion,
         MOTION_NEGATIVE,
@@ -426,6 +474,7 @@ async function animateSong(songDir, cfg, comfyUrl) {
       reused: false,
       motion,
       seed,
+      length: clipCfg.length,
       comfySource: videoPath,
     });
   }
@@ -445,15 +494,39 @@ async function main() {
     );
   }
 
-  let length = Number(flag("--length", "49"));
+  const kidsHit = has("--kids-hit") || has("--energetic-motion");
+  const lengthExplicit = has("--length");
+  let length = 49;
+  if (has("--kids-hit") && !lengthExplicit) {
+    length = KIDS_HIT_WAN_LENGTH;
+  } else if (lengthExplicit) {
+    length = Number(flag("--length", "49"));
+  }
   if ((length - 1) % 4 !== 0) {
     length = Math.max(1, Math.round((length - 1) / 4) * 4 + 1);
   }
 
+  const widthExplicit = has("--width");
+  const heightExplicit = has("--height");
   const cfg = {
-    width: Number(flag("--width", "640")),
-    height: Number(flag("--height", "1136")),
+    width: Number(
+      flag(
+        "--width",
+        has("--kids-hit") && !widthExplicit
+          ? String(KIDS_HIT_WAN_WIDTH)
+          : "640",
+      ),
+    ),
+    height: Number(
+      flag(
+        "--height",
+        has("--kids-hit") && !heightExplicit
+          ? String(KIDS_HIT_WAN_HEIGHT)
+          : "1136",
+      ),
+    ),
     length,
+    lengthLocked: lengthExplicit,
     steps: Number(flag("--steps", "4")),
     cfg: Number(flag("--cfg", "1")),
     shift: Number(flag("--shift", "8")),
@@ -463,27 +536,29 @@ async function main() {
   const comfyUrl = flag("--comfy", "http://127.0.0.1:8188");
   console.log("02_1 Animate keyframes — Wan 2.2 I2V");
   console.log(
-    `  ${cfg.width}x${cfg.height} length=${cfg.length} fps=${cfg.fps} steps=${cfg.steps}`,
+    `  ${cfg.width}x${cfg.height} length=${cfg.length} fps=${cfg.fps} steps=${cfg.steps}` +
+      (kidsHit ? " [kids-hit/energetic]" : ""),
   );
 
   await comfy(comfyUrl, "/system_stats");
 
   const targets = await listSongDirs(songArg || batchArg);
   for (const songDir of targets) {
-    await animateSong(songDir, cfg, comfyUrl);
+    await animateSong(songDir, cfg, comfyUrl, { kidsHit });
   }
 
   console.log("\n────────────────────────────────────────────────────────");
   console.log(" Next — stitch clips + song → final.mp4:");
+  const stitchFlag = has("--kids-hit") ? " --loop-fill" : "";
   for (const songDir of targets) {
     console.log(
-      `  node scripts/02_2_stitch-song.js --song ${songArgPath(songDir)}`,
+      `  node scripts/02_2_stitch-song.js --song ${songArgPath(songDir)}${stitchFlag}`,
     );
   }
   if (targets.length > 1 && batchArg) {
     const batchRel = relative(ROOT, resolveSongDir(batchArg)).replace(/\\/g, "/");
     console.log(" Or stitch the whole batch:");
-    console.log(`  node scripts/02_2_stitch-song.js --batch ${batchRel}`);
+    console.log(`  node scripts/02_2_stitch-song.js --batch ${batchRel}${stitchFlag}`);
   }
   console.log("────────────────────────────────────────────────────────");
 }
