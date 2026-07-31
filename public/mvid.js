@@ -196,6 +196,21 @@
   }
 
   function renderClips(tabs) {
+    const previewEl = $("previewPlayer");
+    if (previewEl) {
+      const preview = tabs?.preview;
+      if (!preview?.url) {
+        previewEl.className = "empty";
+        previewEl.textContent = "Preview will appear after the first clip…";
+      } else {
+        const mtime = preview.mtime || Date.now();
+        const n = preview.clips || tabs?.clips?.videos?.length || "?";
+        previewEl.className = "";
+        previewEl.innerHTML = `<p class="hint">Progressive preview · ${n} clip(s) + sound</p>
+          <video id="previewVideo" controls src="${preview.url}?t=${mtime}"></video>`;
+      }
+    }
+
     const el = $("clipsGrid");
     const videos = tabs?.clips?.videos || [];
     if (!videos.length) {

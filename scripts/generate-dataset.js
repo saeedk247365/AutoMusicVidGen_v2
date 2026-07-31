@@ -150,7 +150,15 @@ function keyframeSpecsFor(cfg) {
 async function loadConfig() {
   let raw = await readFile(CONFIG_PATH, "utf8");
   if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
-  return JSON.parse(raw);
+  const cfg = JSON.parse(raw);
+  cfg.comfyUrl = flag("--comfy", cfg.comfyUrl || "http://127.0.0.1:8188");
+  cfg.width = cfg.width || 512;
+  cfg.height = cfg.height || 768;
+  cfg.steps = cfg.steps || 28;
+  cfg.cfg = cfg.cfg ?? 7;
+  cfg.sampler = cfg.sampler || "dpmpp_2m";
+  cfg.scheduler = cfg.scheduler || "karras";
+  return cfg;
 }
 
 function openFile(path) {
@@ -268,11 +276,13 @@ function expressionOf(shot) {
   return "neutral";
 }
 
-function expressionPrompt(shot) {
+function expressionPrompt(shot, cfg = {}) {
   switch (expressionOf(shot)) {
     case "happy":
     case "smile":
-      return "happy soft closed-mouth boyish smile";
+      return isBoy(cfg)
+        ? "happy soft closed-mouth boyish smile"
+        : "happy soft closed-mouth warm smile";
     case "sad":
       return "sad downturned mouth, big soft watery eyes, same exact face identity";
     case "surprised":
@@ -677,7 +687,7 @@ function anatomyPromptLock(shot, cfg) {
 }
 
 function characterPrompt(cfg, shot, { rebuild = false } = {}) {
-  const expr = expressionPrompt(shot);
+  const expr = expressionPrompt(shot, cfg);
   const bg = backgroundForShot(shot);
   const style = styleParts(cfg, { rebuild }).join(", ");
   const outfit = outfitPositive(cfg);
@@ -1751,6 +1761,11 @@ async function main() {
   }
 
   // ======================== PHASE 3: TRAINING SHOTS ========================
+  if (!Array.isArray(cfg.shots) || !cfg.shots.length) {
+    throw new Error(
+      `No shots defined in ${CONFIG_PATH}. Add a "shots" array (see characters/adam.json), or stop after keyframes with --keyframes-only.`,
+    );
+  }
   const shots = (ONLY_IDS ? cfg.shots.filter((s) => ONLY_IDS.has(s.id)) : cfg.shots).map(
     normalizeShot,
   );

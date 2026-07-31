@@ -1,0 +1,28 @@
+{
+  "comfyUrl": "http://127.0.0.1:8188",
+  "comfyRoot": "ComfyUI",
+  "datasetDir": "dataset/sasha/images",
+  "checkpoint": "realcartoon3d_v15.safetensors",
+
+  "loraName": "sashamom_character_v1",
+  "datasetFolder": "character_lora_sashamom",
+
+  "steps": 200,
+  "learningRate": 0.0005,
+  "rank": 8,
+  "batchSize": 1,
+  "gradAccumulationSteps": 8,
+  "seed": 888201,
+  "optimizer": "AdamW",
+  "lossFunction": "MSE",
+  "trainingDtype": "bf16",
+  "loraDtype": "bf16",
+  "algorithm": "LoRA",
+  "gradientCheckpointing": true,
+  "checkpointDepth": 2,
+  "offloading": true,
+  "existingLora": "[None]",
+
+  "copyToModelsLoras": true,
+  "copyToProject": true
+}

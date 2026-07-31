@@ -1,11 +1,11 @@
 /**
- * Adam-only nursery pipeline (toddler boy Adam — no Tom / tomchr / Sasha):
+ * Nursery pipeline (toddler Adam + optional mom Sasha):
  *   1) Ensure character ref stills exist (optional / --chars-only)
- *   2) Ensure empty scene stills exist (home / lawn / kitchen / bedroom / dining)
+ *   2) Ensure empty scene stills exist (home / lawn / kitchen / bedroom / dining / playroom / …)
  *   3) For each song: Qwen lyrics → ACE song → Qwen scene/actions → keyframes
  *
- * Keyframes: Adam studio plate (txt2img+LoRA) → ML background removal →
- * paste onto UNTOUCHED empty scene. Scene geometry is never inpainted/rewritten.
+ * Keyframes: per-character studio plate (txt2img+LoRA) → ML background removal →
+ * paste onto UNTOUCHED empty scene (multi-layer when Mom appears). Scene geometry is never inpainted.
  *
  * Output:
  *   characters/            shared character defs + ref stills
@@ -15,10 +15,10 @@
  *       <song_slug>.mp3
  *       lyrics.txt
  *       scenes/            song-specific scene copies + actions.json
- *       keyframes/         Adam-in-scene beat stills
+ *       keyframes/         cast-in-scene beat stills
  *
- * Character defs live in characters/ (single JSON per character in characters/).
- * Cast is Adam only (characters/adam.json).
+ * Character defs live in characters/ (single JSON per character).
+ * Cast: Adam + Sasha (characters/adam.json, characters/sasha.json).
  *
  * Run:
  *   node scripts/02_0_generate-lyrics+song+scene+keyframes.js
@@ -43,6 +43,7 @@ import {
   sleep,
   queueAndWait,
   copyNewestOutput,
+  extractImageFromHistory,
   checkpointStillWorkflow,
   loraStillWorkflow,
   loraImg2ImgWorkflow,
@@ -77,6 +78,7 @@ import {
   lyricsHaveProblems,
   normalizeKidsLyricsText,
   shortenKidsLyricLines,
+  repairTruncatedLyricLines,
   inferKidsHitThemeFromLyrics,
   repairKidsHitBeats,
   objectiveForTheme,
@@ -88,8 +90,8 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, "..");
 const CHAR_PATH = join(ROOT, "characters", "adam.json");
 const CHARACTERS_DIR = join(ROOT, "characters");
-/** Only Adam appears in generated scenes (never Tom / tomchr / Sasha). */
-const CAST_IDS = ["adam"];
+/** Adam (toddler) + Sasha (mom) — story beats may include one or both. */
+const CAST_IDS = ["adam", "sasha"];
 const SCENES_DIR = join(ROOT, "scenes");
 const ACE_ROOT =
   "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ACE-Step-1.5";
@@ -311,8 +313,9 @@ LYRICS:
  */
 const QWEN_SCENES_PROMPT = `You plan preschool music-video BEATS as frozen still frames for a cartoon toddler.
 
-Characters (use ONLY this name — never Tom, tomchr, dad, mom, Sasha, or any other person):
-- Adam = toddler boy (the ONLY character in every beat)
+Characters (use ONLY these names — never Tom, tomchr, dad, or siblings):
+- Adam = toddler boy (REQUIRED every beat)
+- Sasha = Mom (OPTIONAL on help / hug / celebration beats)
 
 Allowed locations (exact ids only):
 {{LOCATIONS}}
@@ -341,8 +344,9 @@ HARD RULES:
 - Each beat is ONE frozen instant. No sequences ("runs then stops").
 - No storytelling, no adverbs, no prompt_extra, no lookAt.
 - Pose / expression / facing / camera must be from the allowed lists only.
-- Exactly ONE character per beat: Adam only. placement must be {"Adam":"center"}.
-- Never include Tom, tomchr, Sasha, dad, mom, or any second person.
+- Adam on every beat. Sasha only when lyrics/theme need Mom (kneel/wave/point/hands_up/stand/walk).
+- When both: placement {"Adam":"left","Sasha":"right"} (never same slot).
+- Never include Tom, tomchr, dad, or siblings.
 - Preschool-safe. No scary content.
 
 OUTPUT EXACTLY valid JSON (no markdown fences):
@@ -353,11 +357,17 @@ OUTPUT EXACTLY valid JSON (no markdown fences):
       "location": "kitchen",
       "section": "Intro",
       "camera": "full_body",
-      "placement": { "Adam": "center" },
+      "placement": { "Adam": "left", "Sasha": "right" },
       "characters": [
         {
           "name": "Adam",
           "pose": "clap",
+          "expression": "happy",
+          "facing": "front"
+        },
+        {
+          "name": "Sasha",
+          "pose": "kneel",
           "expression": "happy",
           "facing": "front"
         }
@@ -399,6 +409,8 @@ const CANONICAL_EXPRESSIONS = {
   neutral: "neutral calm face",
   curious: "curious soft open expression",
   gentle_smile: "gentle soft smile",
+  surprised: "surprised soft open eyes, brows up, small oh mouth",
+  excited: "excited bright smile, wide happy eyes",
 };
 
 const CANONICAL_FACINGS = {
@@ -409,11 +421,13 @@ const CANONICAL_FACINGS = {
     "three-quarter view from right, body angled slightly right, head facing camera",
 };
 
-const CHAR_NAME_RE = /^adam$/i;
+const CHAR_NAME_RE = /^(adam|sasha)$/i;
 
 /** Other cast triggers to ban when generating a solo plate */
 const CAST_SOLO_NEGATIVES = {
   adam: "Tom, tomchr, tomdad, Sasha, sashamom, adult, dad, mom, woman, father, mother, two people, multiple people, second person, couple, duo",
+  sasha:
+    "Tom, tomchr, Adam, adamboy, toddler, child, baby, boy, dad, father, man, masculine, two people, multiple people, second person, couple, duo",
 };
 
 function titleCaseName(c) {
@@ -448,10 +462,12 @@ function normalizeExpressionId(raw) {
     .trim()
     .replace(/[\s-]+/g, "_");
   if (CANONICAL_EXPRESSIONS[s]) return s;
+  if (/surpris|wow|oh\b|amazed|astonish/.test(s)) return "surprised";
+  if (/excit|thrilled|eager|yay/.test(s)) return "excited";
   if (/curious|wonder/.test(s)) return "curious";
   if (/gentle|soft smile|warm/.test(s)) return "gentle_smile";
-  if (/happy|smile|joy|excited|wide eyes/.test(s)) return "happy";
-  if (/neutral|calm|serious/.test(s)) return "neutral";
+  if (/happy|smile|joy|wide eyes/.test(s)) return "happy";
+  if (/neutral|calm|serious|stuck|tired/.test(s)) return "neutral";
   return "happy";
 }
 
@@ -484,10 +500,23 @@ function normalizeFacingId(raw) {
 function normalizePlacementSlot(raw, fallback = "center") {
   const s = String(raw || "")
     .toLowerCase()
-    .trim();
-  if (s === "left" || s === "right" || s === "center") return s;
-  if (/left|left_third/.test(s)) return "left";
-  if (/right|right_third/.test(s)) return "right";
+    .trim()
+    .replace(/[\s-]+/g, "_");
+  if (
+    s === "left" ||
+    s === "mid_left" ||
+    s === "center" ||
+    s === "mid_right" ||
+    s === "right"
+  ) {
+    return s;
+  }
+  if (s === "near_left" || s === "close_left") return "mid_left";
+  if (s === "near_right" || s === "close_right") return "mid_right";
+  if (s === "together" || s === "close") return "center";
+  // Word-boundary style: don't match mid_left as left
+  if (/(^|_)left(_third)?$/.test(s) && !/mid_/.test(s)) return "left";
+  if (/(^|_)right(_third)?$/.test(s) && !/mid_/.test(s)) return "right";
   return fallback;
 }
 
@@ -643,39 +672,78 @@ function buildCharPrompt(char, kf, actionExtra = "") {
 }
 
 /**
- * Studio plate for ML cutout — full-body Adam on flat gray (NOT chroma).
+ * Studio plate for ML cutout — full-body character on flat gray (NOT chroma).
  * Pose/expression/facing from the beat; no room/furniture.
  */
 function buildPlatePrompt(char, frame, beat) {
   const poseId = normalizePoseId(frame.pose);
   const exprId = normalizeExpressionId(frame.expression);
   let cameraId = normalizeCameraId(frame.camera || beat.camera);
-  if (cameraId === "close" || cameraId === "portrait") cameraId = "medium_full";
+  // Keep close framing — remapping to medium_full killed push_in composites
+  if (cameraId === "portrait") cameraId = "close";
   const facingId = normalizeFacingId(frame.facing);
+  const isMom = String(char.role || "").toLowerCase() === "mom";
+  const close =
+    beat?.proximity === "near" ||
+    beat?.proximity === "close" ||
+    beat?.closeInteraction === true;
+  const socialNear = /kneel|open arms|arms open|wave|welcome|look up|together|stretch|dance/.test(
+    String(beat?.interaction || beat?.lyricHint || "").toLowerCase(),
+  );
+
+  // Social lean — face partner side of frame, NEVER invent contact/hug
+  let contactPose = null;
+  let contactFacing = null;
+  if (close || socialNear) {
+    if (isMom) {
+      contactFacing =
+        "three-quarter view facing LEFT toward empty space, head turned left, looking down-left at toddler eye level, NOT facing camera, NOT looking at viewer";
+      contactPose =
+        "kneeling or standing at toddler height, body turned slightly LEFT, ONE arm waving open welcoming (empty hands, NO child in arms), leaning slightly left, single person only, NO hug, NO holding";
+    } else {
+      contactFacing =
+        "three-quarter view facing RIGHT toward empty space, head turned right, looking up-right, NOT facing camera, NOT looking at viewer";
+      contactPose =
+        "toddler body turned slightly RIGHT, looking up-right, arms may stretch UP (not wrapping anyone), single toddler only, NO hug";
+    }
+  }
 
   return [
+    // Outfit FIRST so it outweighs LoRA clothing priors
+    isMom
+      ? "OUTFIT LOCK: button-front solid soft coral pink short-sleeve BLOUSE (not a t-shirt), solid cream long dress pants (not leggings), plain white sneakers, coral blouse, cream pants, woven blouse fabric, collar blouse"
+      : "OUTFIT LOCK: mint green crew neck t-shirt, navy toddler pants, white sneakers",
     char.trigger,
     "masterpiece character plate",
     char.styleTag || char.style,
-    "flat 2D anime cartoon illustration",
-    "clean cel shading",
+    // Force Mom into same cel look as Adam LoRA (no soft painterly mismatch)
+    "flat 2D anime cartoon illustration, clean cel shading, bold black lineart, hard outlines, preschool cartoon, same style as toddler character plates",
+    isMom
+      ? "bold ink outlines, flat color fills, NOT soft painterly, NOT semi-realistic, NOT 3d"
+      : "clean cel shading",
     char.appearance,
     char.outfit,
+    isMom
+      ? "must wear coral pink BLOUSE with short sleeves and cream long pants, adult mother about 30, not teen not child, NOT a t-shirt, NOT athletic wear, NOT leggings, no white tee, no pink pants, no mint shirt"
+      : null,
     "solid opaque body",
     "opaque clothing",
     "no transparency",
     CANONICAL_CAMERAS[cameraId],
     "full body head to feet visible",
-    "small toddler proportions",
+    isMom
+      ? "adult woman proportions, taller than a toddler, clearly a mom"
+      : "small toddler proportions",
     "feet planted at bottom of frame",
-    "centered",
+    close ? "character fills mid-frame for hug staging" : "centered",
     "soft even studio lighting matching soft daylight",
     "clean contact silhouette",
-    CANONICAL_FACINGS[facingId],
-    CANONICAL_POSES[poseId],
+    contactFacing || CANONICAL_FACINGS[facingId],
+    contactPose || CANONICAL_POSES[poseId],
     CANONICAL_EXPRESSIONS[exprId],
-    "exactly one toddler boy",
+    isMom ? "exactly one adult mom" : "exactly one toddler boy",
     "single character only",
+    "EMPTY FRAME except one character, no other people, no baby, no doll, no phantom child",
     STUDIO_BG_PROMPT,
     "same exact outfit and identity",
   ]
@@ -684,7 +752,9 @@ function buildPlatePrompt(char, frame, beat) {
 }
 
 function plateNegative(char) {
-  const solo = CAST_SOLO_NEGATIVES[String(char.id || "").toLowerCase()] || "";
+  const id = String(char.id || "").toLowerCase();
+  const solo = CAST_SOLO_NEGATIVES[id] || "";
+  const isMom = String(char.role || "").toLowerCase() === "mom";
   return [
     char.negative,
     STILL_NEGATIVE,
@@ -693,11 +763,15 @@ function plateNegative(char) {
     "two people",
     "multiple people",
     "crowd",
-    "adult",
-    "dad",
-    "mom",
+    isMom
+      ? "toddler, child, baby, teen, sister, pink pants, white t-shirt, phantom child, doll in arms, second person, holding baby, holding toddler, child in arms"
+      : "adult, dad, mom, second person, twin",
+    isMom ? "baby" : "mom",
+    isMom
+      ? "teen, teenager, white t-shirt, white tee, pale t-shirt, mint shirt, green shirt, pink pants, pink trousers, salmon pants, cropped pants, handbag, purse, beanie, hat, short child, sister, young girl, athletic shirt, yoga pants, leggings with stripe, pink sneakers, spotlight, circular mat, blue floor, colored floor circle, floor spotlight"
+      : "hat, beanie, cap, different clothes, outfit change, spotlight, circular mat, blue floor",
     "Tom",
-    "Sasha",
+    id === "adam" ? "Sasha" : "Adam",
     "dog",
     "pet",
     "animal",
@@ -718,6 +792,93 @@ function plateNegative(char) {
     .join(", ");
 }
 
+/**
+ * One plate with BOTH characters physically interacting.
+ * Separate cutouts can never wrap arms — this is the only path to a real hug.
+ */
+function buildDuoPlatePrompt(cast, frames, beat) {
+  const byName = (n) =>
+    frames.find((f) => String(f.name || "").toLowerCase() === n);
+  const adamF = byName("adam") || frames[0];
+  const momF =
+    byName("sasha") ||
+    frames.find((f) => {
+      const c = cast[String(f.name || "").toLowerCase()];
+      return c && String(c.role || "").toLowerCase() === "mom";
+    });
+  const adam = cast.adam || cast[String(adamF?.name || "").toLowerCase()];
+  const mom = cast.sasha || cast[String(momF?.name || "").toLowerCase()];
+  const ix = String(beat?.interaction || beat?.lyricHint || "").toLowerCase();
+  const hug = /hug|tight|hold|embrace|arms|together|pull/.test(ix);
+
+  const action = hug
+    ? "TRUE HUG: adult mom kneeling behind one toddler boy, her arms wrapped around HIS torso only, cheek near his hair, warm morning hug, bodies touching, NO gap"
+    : "CLOSE INTERACTION: mom kneeling behind one toddler, hands on his shoulders, they lean together, face mostly toward each other";
+
+  return [
+    "masterpiece preschool music video character plate",
+    "EXACTLY TWO PEOPLE TOTAL — one adult mom Sasha and one toddler boy Adam — NEVER a third person, NEVER a baby, NEVER a second child, NEVER holding an infant",
+    "flat 2D anime cartoon illustration, clean cel shading, bold black lineart, hard outlines, SAME style for BOTH characters",
+    adam?.trigger,
+    mom?.trigger,
+    adam?.appearance,
+    mom?.appearance,
+    "OUTFIT LOCK toddler Adam ONLY: mint green crew neck t-shirt, navy toddler pants, white sneakers — Adam is the ONLY child",
+    "OUTFIT LOCK mom Sasha ONLY: solid soft CORAL PINK short-sleeve button blouse, solid CREAM long pants, white sneakers — mom top is CORAL PINK not white not navy not blue not green",
+    "mom clothing is coral pink blouse with cream pants",
+    action,
+    "full bodies visible head to feet",
+    "centered mid-frame together",
+    "soft even studio lighting",
+    "two people only",
+    STUDIO_BG_PROMPT,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function duoPlateNegative(cast) {
+  const adam = cast.adam;
+  const mom = cast.sasha;
+  return [
+    adam?.negative,
+    mom?.negative,
+    STILL_NEGATIVE,
+    STUDIO_BG_NEGATIVE,
+    "three people",
+    "three characters",
+    "two children",
+    "second child",
+    "baby",
+    "infant",
+    "holding baby",
+    "holding infant",
+    "crowd",
+    "extra limbs",
+    "merged faces",
+    "photorealistic",
+    "3d render",
+    "far apart",
+    "opposite sides of frame",
+    "standing on opposite walls",
+    "ignore each other",
+    "white t-shirt on mom",
+    "white blouse on mom",
+    "navy shirt on mom",
+    "blue shirt on mom",
+    "dark blue top on mom",
+    "pink pants on mom",
+    "mint shirt on mom",
+    "green shirt on mom",
+    "hat",
+    "beanie",
+    "text",
+    "watermark",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 /** Expand a normalized beat into one plate-spec per character. */
 function framesFromBeat(beat) {
   const chars = Array.isArray(beat.characters) ? beat.characters : [];
@@ -733,7 +894,11 @@ function framesFromBeat(beat) {
     const placement =
       beat.placement?.[name] ||
       (typeof c === "object" && c.placement) ||
-      (chars.length === 1 ? "center" : i === 0 ? "left" : "right");
+      (chars.length === 1
+        ? "center"
+        : i === 0
+          ? "mid_left"
+          : "mid_right");
     return {
       name,
       character: name,
@@ -750,8 +915,9 @@ function buildScenePrompt(scenePack, scene) {
   return [
     scenePack.style,
     scene.still,
-    "empty environment",
-    "completely empty room",
+    "furnished cozy preschool room",
+    "readable furniture in midground",
+    "clear open floor play lane in the foreground",
     "no people",
     "no characters",
     "no silhouettes",
@@ -759,7 +925,6 @@ function buildScenePrompt(scenePack, scene) {
     "no reflections of people",
     "no faces",
     "no animals",
-    "no toys with faces",
   ].join(", ");
 }
 
@@ -962,7 +1127,7 @@ function normalizeBeatPlan(data, allowedLocations, opts = {}) {
         }));
     }
 
-    // Adam-only cast: drop Tom/Sasha/etc. and force a single Adam beat if needed
+    // Allowed cast: Adam and/or Sasha (drop Tom etc.)
     charObjs = charObjs.filter((c) => CHAR_NAME_RE.test(c.name));
     if (charObjs.length === 0) {
       charObjs = [
@@ -974,17 +1139,32 @@ function normalizeBeatPlan(data, allowedLocations, opts = {}) {
         },
       ];
     }
-    charObjs = charObjs.slice(0, 1);
-    charObjs[0].name = "Adam";
+    // Prefer Adam first, then Sasha; max 2
+    charObjs.sort((a, b) => {
+      const rank = (n) => (/^adam$/i.test(n) ? 0 : /^sasha$/i.test(n) ? 1 : 2);
+      return rank(a.name) - rank(b.name);
+    });
+    charObjs = charObjs.slice(0, 2);
+    for (const c of charObjs) {
+      c.name = titleCaseName(c.name);
+    }
 
-    const rawSlot =
-      b.placement?.Adam ||
-      b.placement?.adam ||
-      (typeof b.characters?.[0] === "object" && b.characters[0].placement) ||
-      "center";
-    const placement = {
-      Adam: normalizePlacementSlot(rawSlot, "center"),
-    };
+    const placement = {};
+    for (let ci = 0; ci < charObjs.length; ci++) {
+      const nm = charObjs[ci].name;
+      const rawSlot =
+        b.placement?.[nm] ||
+        b.placement?.[nm.toLowerCase()] ||
+        (typeof charObjs[ci] === "object" && charObjs[ci].placement) ||
+        (charObjs.length === 1 ? "center" : ci === 0 ? "left" : "right");
+      placement[nm] = normalizePlacementSlot(rawSlot, ci === 0 ? "center" : "right");
+    }
+    if (!placement.Adam && charObjs.some((c) => c.name === "Adam")) {
+      placement.Adam = normalizePlacementSlot(
+        b.placement?.Adam || b.placement?.adam || "left",
+        "left",
+      );
+    }
 
     const out = {
       id: String(b.id || `${String(i + 1).padStart(2, "0")}_${loc}`),
@@ -1011,13 +1191,24 @@ function normalizeBeatPlan(data, allowedLocations, opts = {}) {
     for (const key of [
       "cause",
       "effect",
+      "interaction",
       "cutMotivation",
       "actionPhase",
+      "beatRole",
+      "cameraMotion",
       "exitDir",
       "enterDir",
     ]) {
       if (b[key]) out[key] = String(b[key]);
     }
+    if (Number.isFinite(Number(b.emotionIntensity))) {
+      out.emotionIntensity = Math.max(
+        1,
+        Math.min(5, Math.round(Number(b.emotionIntensity))),
+      );
+    }
+    if (b.proximity) out.proximity = String(b.proximity);
+    if (b.closeInteraction === true) out.closeInteraction = true;
     if (b.bridge === true) out.bridge = true;
     return out;
   });
@@ -1039,6 +1230,7 @@ function normalizeBeatPlan(data, allowedLocations, opts = {}) {
       theme,
       allowedLocations,
       durationSec: dur,
+      lyricsText: opts.lyricsText || "",
     });
     result.durationSec = dur;
     result.kidsHit = true;
@@ -1129,7 +1321,7 @@ async function qwenGenerateLyrics(model, temperature, ctx) {
     try {
       const retryHint =
         ctx.kidsHit && attempt > 1
-          ? `\n\nRETRY ${attempt}: EVERY lyric line MUST be 6 words or fewer. Example good lines:\nClap clap clap.\nWash hands now.\nWalk to the table.\nPlease and thank you.\nNo filler rhymes like gap/grump/pain/trap.`
+          ? `\n\nRETRY ${attempt}: EVERY lyric line MUST be a COMPLETE thought of 6 words or fewer. Never end mid-phrase. Bad: "I'm stuck in my bed, can't". Good: "Stuck in bed now." "Blanket too tight." "Mom kneels by me."`
           : "";
       const content = await ollamaChat(
         model,
@@ -1139,9 +1331,8 @@ async function qwenGenerateLyrics(model, temperature, ctx) {
         1800,
       );
       last = parseTitleAndLyrics(content);
-      last.lyrics = shortenKidsLyricLines(
-        normalizeKidsLyricsText(last.lyrics),
-        6,
+      last.lyrics = repairTruncatedLyricLines(
+        shortenKidsLyricLines(normalizeKidsLyricsText(last.lyrics), 6),
       );
       last.title = normalizeKidsLyricsText(last.title);
       if (!ctx.kidsHit) return last;
@@ -1158,6 +1349,7 @@ async function qwenGenerateLyrics(model, temperature, ctx) {
     }
   }
   if (ctx.kidsHit && last) {
+    last.lyrics = repairTruncatedLyricLines(last.lyrics);
     const leftover = lyricsHaveProblems(last.lyrics);
     if (leftover.length) {
       throw new Error(`lyrics QA still failing after ${tries} tries: ${leftover.join(", ")}`);
@@ -1205,7 +1397,7 @@ async function qwenGenerateBeats(model, temperature, ctx) {
   }
 
   const system = ctx.kidsHit
-    ? "You plan a continuous preschool adventure storyboard. Output valid JSON only. Every beat needs cause/effect, cutMotivation, actionPhase, exitDir/enterDir. Never teleport rooms without a doorway beat. Include startSec/endSec/lyricHint/storyBeat. Keep strings short."
+    ? "You plan a lived preschool adventure storyboard (interaction chains, not pose slideshows). Output valid JSON only. Every beat needs cause/effect/interaction, cutMotivation, actionPhase/beatRole, cameraMotion, emotionIntensity, exitDir/enterDir. Prefer notice→react→act→settle. Never teleport rooms without a doorway beat. Include startSec/endSec/lyricHint/storyBeat. Keep strings short."
     : "You plan frozen preschool cartoon storyboard stills. Output valid JSON only. Use only allowed pose/camera/expression/facing ids. No storytelling. No lookAt.";
 
   const tries = ctx.kidsHit ? 3 : 1;
@@ -1326,8 +1518,17 @@ async function generateStill(comfyUrl, cfg, prompt, negative, seed, prefix, dest
   } else {
     wf = checkpointStillWorkflow(cfg, prompt, negative, seed, prefix);
   }
-  await queueAndWait(comfyUrl, wf, 900000, prefix);
-  await copyNewestOutput("image", prefix, dest);
+  const entry = await queueAndWait(comfyUrl, wf, 900000, prefix);
+  // Prefer exact history output — copyNewestOutput can pick stale files
+  // when Comfy writes to a different output dir than we scan.
+  try {
+    const buf = await extractImageFromHistory(comfyUrl, entry);
+    await mkdir(join(dest, ".."), { recursive: true });
+    await writeFile(dest, Buffer.from(buf));
+  } catch (err) {
+    console.warn(`  history extract failed (${err.message?.slice(0, 80)}), falling back to filesystem`);
+    await copyNewestOutput("image", prefix, dest, comfyUrl);
+  }
   console.log(`  saved: ${dest}`);
   return dest;
 }
@@ -1425,10 +1626,18 @@ async function generateSongKeyframes(
   }
 
   const allowedLocations = (scenePack.scenes || []).map((s) => s.id);
+  let lyricsText = "";
+  try {
+    const lp = join(songDir, "lyrics.txt");
+    if (existsSync(lp)) lyricsText = stripBom(await readFile(lp, "utf8"));
+  } catch {
+    /* optional */
+  }
   const planNorm = normalizeBeatPlan(plan, allowedLocations, {
     kidsHit: kidsHit || plan?.kidsHit === true,
     durationSec: plan?.durationSec,
     theme: plan?.theme || "",
+    lyricsText,
   });
   await writeFile(
     join(scenesDir, "actions.json"),
@@ -1460,79 +1669,217 @@ async function generateSongKeyframes(
       continue;
     }
 
-    const frame = frames[0];
-    const char = cast[String(frame.name || "").toLowerCase()];
     const pad = String(k).padStart(2, "0");
     const fname = `${pad}_${beat.id}.png`;
     const dest = join(keyframesDir, fname);
-    const plateDest = join(platesDir, `${pad}_${beat.id}_${char.id}.png`);
-    const cutoutDest = join(cutoutsDir, `${pad}_${beat.id}_${char.id}.png`);
 
-    if (force) {
-      const wipe = reuseCutouts ? [dest] : [dest, plateDest, cutoutDest];
-      for (const p of wipe) {
-        if (existsSync(p)) {
-          try {
-            await unlink(p);
-          } catch {
-            /* ignore */
-          }
-        }
+    if (force && existsSync(dest)) {
+      try {
+        await unlink(dest);
+      } catch {
+        /* ignore */
       }
     }
 
-    const layout = resolveCharacterLayout({
-      location,
-      camera: frame.camera || beat.camera,
-      pose: frame.pose,
-      slot: frame.placement || "center",
-      depth: beat.depth || frame.depth || "mid",
-    });
+    const layers = [];
+    const proxEarly =
+      beat.proximity || (beat.closeInteraction ? "near" : "apart");
+    // Duo plates disabled for kids-hit — they produced hugs / body contact.
+    // Always separate cutouts with social-near mid slots.
+    const useDuoPlate = false;
+    void proxEarly;
 
-    let cutoutBuf;
-    if (reuseCutouts && existsSync(cutoutDest)) {
-      console.log(
-        `  [${pad}] ${beat.id} @ ${location} → reuse cutout → composite` +
-          ` scale=${layout.scale.toFixed(2)}`,
-      );
-      cutoutBuf = await readFile(cutoutDest);
-    } else {
-      const loraName = resolveLoraName(char);
-      const plateCfg = comfyCfg(cfgRoot, {
-        width: SETTINGS.charWidth,
-        height: SETTINGS.charHeight,
-        checkpoint: char.checkpoint,
-        loraName,
-        loraStrength: SETTINGS.keyframeLoraStrength ?? char.loraStrength ?? 0.95,
+    if (useDuoPlate) {
+      if (force && !reuseCutouts) {
+        for (const p of [duoPlateDest, duoCutoutDest]) {
+          if (existsSync(p)) {
+            try {
+              await unlink(p);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+
+      let cutoutBuf;
+      if (reuseCutouts && existsSync(duoCutoutDest)) {
+        console.log(
+          `  [${pad}] ${beat.id} DUO @ ${location} → reuse duo cutout`,
+        );
+        cutoutBuf = await readFile(duoCutoutDest);
+      } else {
+        const adamChar = cast.adam;
+        // No character LoRA on duo plates — Adam LoRA bleeds navy/mint onto Mom.
+        // Style comes from shared cel prompts; outfits from OUTFIT LOCK text.
+        const plateCfg = comfyCfg(cfgRoot, {
+          width: SETTINGS.charWidth,
+          height: SETTINGS.charHeight,
+          checkpoint: adamChar?.checkpoint || cfgRoot.checkpoint,
+          loraName: null,
+          loraStrength: 0,
+        });
+        const prompt = buildDuoPlatePrompt(cast, frames, beat);
+        const neg = duoPlateNegative(cast);
+        console.log(
+          `  [${pad}] ${beat.id} DUO plate @ ${location} cam=${beat.camera}` +
+            ` → rembg → CONTACT (no LoRA, outfit-lock)`,
+        );
+        await generateStill(
+          comfyUrl,
+          plateCfg,
+          prompt,
+          neg,
+          randomSeed(),
+          `family_plate_duo_${beat.id}`,
+          duoPlateDest,
+          { force },
+        );
+        console.log(`      rembg duo cutout…`);
+        const plateBuf = await readFile(duoPlateDest);
+        cutoutBuf = await removePlateBackground(plateBuf);
+        await writeFile(duoCutoutDest, cutoutBuf);
+      }
+
+      const layout = resolveCharacterLayout({
+        location,
+        camera: beat.camera,
+        pose: "stand",
+        slot: "center",
+        depth: "near",
+        role: "toddler",
+        cameraMotion: beat.cameraMotion || "",
+        proximity: "close",
+      });
+      // Duo cutout is taller/wider — bump scale so the pair fills mid-frame
+      layers.push({
+        buffer: cutoutBuf,
+        slot: "center",
+        role: "duo",
+        scale: Math.min(0.72, layout.scale * 1.35),
+        // Duo plates float if bottomPad is high — plant knees/feet on floor plane
+        bottomPad: 0.03,
+        shadow: layout.shadow,
+        proximity: "close",
+        skipRemoveBg: true,
+      });
+    }
+
+    if (!useDuoPlate) for (const frame of frames) {
+      const char = cast[String(frame.name || "").toLowerCase()];
+      if (!char) continue;
+      const plateDest = join(platesDir, `${pad}_${beat.id}_${char.id}.png`);
+      const cutoutDest = join(cutoutsDir, `${pad}_${beat.id}_${char.id}.png`);
+
+      if (force && !reuseCutouts) {
+        for (const p of [plateDest, cutoutDest]) {
+          if (existsSync(p)) {
+            try {
+              await unlink(p);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+
+      const layout = resolveCharacterLayout({
+        location,
+        camera: frame.camera || beat.camera,
+        pose: frame.pose,
+        slot: frame.placement || "center",
+        depth: beat.depth || frame.depth || "mid",
+        role: char.role || "toddler",
+        cameraMotion: beat.cameraMotion || "",
+        proximity: beat.proximity || (beat.closeInteraction ? "close" : "apart"),
       });
 
-      const prompt = buildPlatePrompt(char, frame, beat);
-      const neg = plateNegative(char);
+      let cutoutBuf;
+      if (reuseCutouts && existsSync(cutoutDest)) {
+        console.log(
+          `  [${pad}] ${beat.id} ${char.name} @ ${location} → reuse cutout` +
+            ` scale=${layout.scale.toFixed(2)} prox=${layout.proximity}`,
+        );
+        cutoutBuf = await readFile(cutoutDest);
+      } else {
+        const loraName = resolveLoraName(char);
+        const isMom = String(char.role || "").toLowerCase() === "mom";
+        // Mom LoRA trained on wrong outfit — keep VERY low for face/style only;
+        // outfit lock in prompt + negatives must win over clothing priors.
+        const plateLoraName = isMom ? loraName : loraName;
+        const loraStrength = isMom
+          ? Math.min(0.18, Number(char.loraStrength ?? 0.18))
+          : SETTINGS.keyframeLoraStrength ?? char.loraStrength ?? 0.95;
+        const plateCfg = comfyCfg(cfgRoot, {
+          width: SETTINGS.charWidth,
+          height: SETTINGS.charHeight,
+          checkpoint: char.checkpoint,
+          loraName: isMom && loraStrength <= 0 ? null : plateLoraName,
+          loraStrength: isMom && !loraName ? 0 : loraStrength,
+        });
 
-      console.log(
-        `  [${pad}] ${beat.id} @ ${location} cam=${beat.camera}` +
-          ` → plate → rembg → composite` +
-          `${loraName ? ` (+${loraName})` : ""}`,
-      );
-      console.log(
-        `      pose=${frame.pose} face=${frame.facing} expr=${frame.expression} slot=${frame.placement || "center"}`,
-      );
+        const prompt = buildPlatePrompt(char, frame, beat);
+        const neg = plateNegative(char);
 
-      await generateStill(
-        comfyUrl,
-        plateCfg,
-        prompt,
-        neg,
-        randomSeed(),
-        `family_plate_${char.id}_${beat.id}`,
-        plateDest,
-        { force },
-      );
+        console.log(
+          `  [${pad}] ${beat.id} ${char.name} @ ${location} cam=${beat.camera}` +
+            ` → plate → rembg → layer` +
+            `${plateCfg.loraName ? ` (+${plateCfg.loraName}@${loraStrength})` : " (no LoRA, outfit-lock)"}` +
+            ` prox=${layout.proximity}`,
+        );
+        console.log(
+          `      pose=${frame.pose} face=${frame.facing} expr=${frame.expression} slot=${frame.placement || "center"}`,
+        );
 
-      console.log(`      rembg cutout…`);
-      const plateBuf = await readFile(plateDest);
-      cutoutBuf = await removePlateBackground(plateBuf);
-      await writeFile(cutoutDest, cutoutBuf);
+        await generateStill(
+          comfyUrl,
+          plateCfg,
+          prompt,
+          neg,
+          randomSeed(),
+          `family_plate_${char.id}_${beat.id}`,
+          plateDest,
+          { force },
+        );
+
+        console.log(`      rembg cutout…`);
+        const plateBuf = await readFile(plateDest);
+        cutoutBuf = await removePlateBackground(plateBuf);
+        await writeFile(cutoutDest, cutoutBuf);
+      }
+
+      layers.push({
+        buffer: cutoutBuf,
+        slot: layout.slot,
+        role: char.role || "toddler",
+        scale: layout.scale,
+        bottomPad: layout.bottomPad,
+        shadow: layout.shadow,
+        proximity: layout.proximity,
+        skipRemoveBg: true,
+      });
+    }
+
+    if (!layers.length) {
+      console.warn(`  Beat ${beat.id}: no layers — skip`);
+      continue;
+    }
+
+    // Close dual-cast: Mom behind, toddler in front (reads as hug, not pasted side-by-side)
+    const prox =
+      beat.proximity || (beat.closeInteraction ? "close" : "apart");
+    if (
+      layers.length >= 2 &&
+      (prox === "close" || prox === "contact" || beat.closeInteraction)
+    ) {
+      layers.sort((a, b) => {
+        const rank = (l) =>
+          String(l.role || "").toLowerCase() === "mom" ||
+          String(l.role || "").toLowerCase() === "helper"
+            ? 0
+            : 1;
+        return rank(a) - rank(b);
+      });
     }
 
     const canvasW = SETTINGS.stillWidth;
@@ -1544,30 +1891,21 @@ async function generateSongKeyframes(
       .toFile(sceneSized);
 
     console.log(
-      `      layout scale=${layout.scale.toFixed(2)} pad=${layout.bottomPad.toFixed(2)} shadow=${layout.shadow}`,
+      `      composite ${layers.length} layer(s) → ${fname}` +
+        (beat.proximity === "near" || beat.proximity === "close"
+          ? " [NEAR STAGE]"
+          : ""),
     );
 
-    const finalBuf = await compositeScene(
-      sceneSized,
-      [
-        {
-          buffer: cutoutBuf,
-          slot: layout.slot,
-          role: char.role || "toddler",
-          scale: layout.scale,
-          bottomPad: layout.bottomPad,
-          shadow: layout.shadow,
-          skipRemoveBg: true,
-        },
-      ],
-      {
-        width: canvasW,
-        height: canvasH,
-        removeBg: false,
-        featherEdges: !!kidsHit,
-        groundWash: false,
-      },
-    );
+    const finalBuf = await compositeScene(sceneSized, layers, {
+      width: canvasW,
+      height: canvasH,
+      removeBg: false,
+      featherEdges: false,
+      groundWash: false,
+      proximity:
+        beat.proximity || (beat.closeInteraction ? "close" : "apart"),
+    });
     await writeFile(dest, finalBuf);
     try {
       await unlink(sceneSized);
@@ -1909,10 +2247,10 @@ async function main() {
 
     const reuseCutouts = has("--reuse-cutouts");
     await freeComfyVram(comfyUrl);
-    // Refresh empty rooms unless we're only re-laying existing cutouts
-    // Missing doorway/hallway/etc. are generated without force (skip existing stills)
+    // Keyframes-only --force must NOT wipe empty rooms (breaks location continuity).
+    // Use --force-scenes only when intentionally regenerating backgrounds.
     await ensureScenes(comfyUrl, characterRoot, scenePack, sharedScenesDir, {
-      force: !reuseCutouts && has("--force"),
+      force: has("--force-scenes"),
     });
     await generateSongKeyframes(
       comfyUrl,
@@ -1941,7 +2279,7 @@ async function main() {
   await mkdir(sharedCharsDir, { recursive: true });
   await mkdir(sharedScenesDir, { recursive: true });
 
-  console.log(kidsHit ? "Adam-only kids-hit pipeline" : "Adam-only nursery pipeline");
+  console.log(kidsHit ? "Kids-hit pipeline (Adam + Sasha)" : "Nursery pipeline (Adam + Sasha)");
   console.log(`batch: ${batchDir}`);
 
   try {

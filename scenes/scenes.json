@@ -1,46 +1,71 @@
 {
-  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold straight lineart, soft even daylight, soft pastel colors, empty environment, no people, no characters, no faces, no animals, clean geometry, straight walls and furniture legs, consistent perspective, not realistic, not 3d render",
-  "negative": "photo, photorealistic, realistic textures, 3d render, people, person, character, human, silhouette, face, animal, toy face, reflection of person, shadow of person, text, watermark, cluttered, messy room, dirty floor, furniture in foreground, table in center foreground, chairs in foreground, bed in foreground, warped furniture, melted legs, crooked lines, broken perspective, floating handles, blurry, low quality, collage, split screen, dark horror, neon cyberpunk",
+  "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold straight lineart, soft even daylight, soft pastel colors, cozy furnished preschool home interiors, readable furniture in midground, no people, no characters, no faces, no animals, clean geometry, straight walls and furniture legs, consistent perspective, not realistic, not 3d render",
+  "negative": "photo, photorealistic, realistic textures, 3d render, people, person, character, human, silhouette, face, animal, toy face, reflection of person, shadow of person, text, watermark, cluttered floor play lane, toys scattered on center floor, dirty floor, empty barren room, vacant warehouse look, warped furniture, melted legs, crooked lines, broken perspective, floating handles, blurry, low quality, collage, split screen, dark horror, neon cyberpunk",
   "scenes": [
     {
       "id": "home",
       "name": "Home",
-      "still": "bright cozy cartoon living room viewed from doorway, bottom 45 percent of image is EMPTY light wooden floor only with nothing on it, sofa and coffee table pushed to the FAR BACK wall, plant in far corner, large window with sheer curtains on far left wall, tiny bookshelf against far right wall, wide open clear standing space filling the entire foreground, furniture looks adult-sized and distant, clean organized room, empty, no people"
+      "still": "bright cozy cartoon living room viewed from doorway, soft pastel walls, comfortable sofa with cushions in the midground left, low coffee table with a small book in midground center-back, tall plant beside sofa, bookshelf with books on the right midground wall, large window with sheer curtains on left wall letting soft daylight in, framed picture on back wall, bottom 28 percent is a clear open wooden-floor PLAY LANE for a toddler to stand, furniture is readable and present but not blocking the center floor, tidy preschool living room, no people"
     },
     {
       "id": "lawn",
       "name": "Front Lawn",
-      "still": "bright sunny cartoon front yard, bottom 50 percent of image is EMPTY green grass and stone walkway with nothing on it, cozy cream house SMALL in the far BACKGROUND with porch and door looking adult-sized and distant, white picket fence behind, bushes and trees only at far left and right edges, blue sky with soft clouds, colorful flowers along far path edges, wide open clear ground filling the entire foreground for a small toddler, empty, no people, no animals"
+      "still": "bright sunny cartoon front yard, cozy cream house with porch and door clearly visible in midground, white picket fence, flower beds along the path, bushes and a tree on the sides, stone walkway, blue sky with soft clouds, bottom 30 percent is a clear open grass PLAY LANE for a toddler to hop and wave, yard feels lived-in and friendly, no people, no animals"
     },
     {
       "id": "kitchen",
       "name": "Kitchen",
-      "still": "bright family cartoon kitchen viewed from doorway, bottom 40 percent EMPTY blue tiled floor for a toddler to stand, sink with faucet clearly visible on the LEFT midground counter, soap bottle near sink, cabinets along back and side walls, refrigerator far left, stove far right, window above sink, round table pushed FAR BACK right, tidy preschool kitchen, empty of people"
+      "still": "bright family cartoon kitchen viewed from doorway, blue tiled floor, sink with faucet and soap on the left midground counter, upper and lower cabinets, refrigerator on left, stove on right, window above sink, round dining table with two chairs in midground right, fruit bowl on table, bottom 28 percent is a clear open tile PLAY LANE for a toddler to stand, tidy preschool kitchen with readable furniture, no people"
     },
     {
       "id": "kitchen_sink",
       "name": "Kitchen Sink",
-      "still": "close mid shot of cartoon kitchen sink area, stainless or white sink with curved faucet centered in midground, soap dispenser and small towel on counter beside sink, blue tiled floor in foreground with clear standing space in front of the sink, upper cabinets above, window light, tidy preschool kitchen corner, empty of people, no characters"
+      "still": "close mid shot of cartoon kitchen sink area, white sink with curved faucet centered in midground, soap dispenser and folded towel on counter, upper cabinets above, window with daylight, a small stool beside the counter, bottom 28 percent clear tile floor PLAY LANE in front of the sink, tidy preschool kitchen corner, no people, no characters"
     },
     {
       "id": "bedroom",
       "name": "Bedroom",
-      "still": "cozy toddler bedroom viewed from doorway, soft pastel blue walls, toddler bed with blanket and pillow against the FAR back wall looking adult-child sized and distant, bedside table and lamp beside the bed, toy shelf against far side wall, large EMPTY light wooden floor in the FOREGROUND center for a toddler to stand or sit, sunny window with curtains on back wall, wide open clear floor space in front of the bed covering bottom 45 percent of image, clean colorful kids room with a few soft toys on the far shelf only, empty of people, flat 2D anime cartoon illustration"
+      "still": "cozy toddler bedroom viewed from doorway, soft pastel blue and pink walls with a gentle wavy border, toddler bed with pink blanket and pillows in midground right, pink bedside table with lamp, wooden toy shelf with soft toys and books on the side wall, sunny window with curtains on left, small blue rug near the bed but not covering the whole floor, bottom 28 percent is a clear open wooden-floor PLAY LANE for a toddler to stand or stretch, colorful kids room that feels furnished and warm, no people"
     },
     {
       "id": "dining_room",
       "name": "Dining Room",
-      "still": "bright cartoon dining room viewed from doorway, bottom 50 percent of image is EMPTY light wooden floor only with nothing on it, rectangular wooden table with chairs pushed to the FAR BACK half of the room looking adult-sized and distant, window on far left wall, framed picture on far right wall, plant in far back corner, wide open clear floor aisle filling the entire foreground, tidy, empty, no people, no food"
+      "still": "bright cartoon dining room viewed from doorway, rectangular wooden table with four chairs in midground, place mats on the table, window with curtains on left wall, framed picture on right wall, plant in the corner, sideboard with a vase, bottom 28 percent is a clear open wooden-floor PLAY LANE aisle toward the table, tidy preschool dining room, no people, no food on plates"
     },
     {
       "id": "doorway",
       "name": "Doorway",
-      "still": "cartoon interior doorway threshold viewed straight on, open wooden door in the center midground, empty light floor in foreground for a toddler to walk through, soft hallway light beyond the door, simple walls, clean preschool set, empty of people, transition bridge shot"
+      "still": "cartoon interior doorway threshold viewed straight on, open wooden door in the center midground showing a hint of the next room beyond, simple baseboards and wall art beside the door, light floor in foreground, bottom 30 percent clear PLAY LANE for a toddler to walk through, soft hallway light beyond the door, clean preschool set, no people, transition bridge shot"
     },
     {
       "id": "hallway",
       "name": "Hallway",
-      "still": "short cartoon home hallway corridor, empty wooden floor corridor leading forward, door frames on left and right edges, soft daylight from far end, clear walking space in center, tidy preschool set, empty of people, transition bridge shot"
+      "still": "short cartoon home hallway corridor, wooden floor, door frames with doors on left and right, a small console table with a plant against one wall, soft daylight from the far end, framed pictures on the walls, bottom 30 percent clear walking PLAY LANE in the center, tidy preschool set, no people, transition bridge shot"
+    },
+    {
+      "id": "playroom",
+      "name": "Playroom",
+      "still": "bright cartoon playroom viewed from doorway, colorful toy shelf with blocks and books along the back midground wall, soft cushions and a beanbag on the left midground, window with curtains, small easel in the far corner, pastel rug covering part of the mid floor, bottom 28 percent is a clear open PLAY LANE on wood and rug edge for dancing, tidy preschool play space, no people, no faces on toys"
+    },
+    {
+      "id": "backyard",
+      "name": "Backyard",
+      "still": "sunny cartoon backyard, small sandbox and child slide clearly visible in midground, fence with flowers, trees at the edges, blue sky soft clouds, bottom 30 percent clear grass PLAY LANE for toddler play, friendly backyard set, no people, no animals"
+    },
+    {
+      "id": "bathtub",
+      "name": "Bathroom Tub",
+      "still": "soft cartoon bathroom, bathtub with shower curtain against the midground back wall, towel rack with towels, rubber duck on the tub edge, sink and mirror on the side, window light, bottom 28 percent clear light tile PLAY LANE, tidy preschool bath set, no people"
+    },
+    {
+      "id": "porch",
+      "name": "Front Porch",
+      "still": "bright cartoon front porch, house door and window clearly visible in midground, wooden railing, potted plant, welcome mat near the door, soft daylight, bottom 30 percent clear wooden deck PLAY LANE for standing and waving, friendly porch set, no people, no animals"
+    },
+    {
+      "id": "living_rug",
+      "name": "Living Room Rug",
+      "still": "cozy cartoon living room mid shot, big soft colorful geometric rug covering the mid floor, sofa with pillows against the back wall, floor lamp beside the sofa, potted plant near the window, window with daylight casting soft shadows, bottom 28 percent includes the front of the rug as a clear PLAY LANE for sitting and dancing, tidy preschool living room, no people"
     }
   ]
 }

@@ -74,6 +74,39 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Read --flag value from ComfyUI process argv (system_stats). */
+function argvFlag(argv, name) {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : null;
+}
+
+/**
+ * Live ComfyUI may use different input/output/models dirs than repo ComfyUI/
+ * (e.g. ProdesecStudio AppData). Prefer the running server's paths.
+ */
+async function resolveLiveComfyDirs(cfg) {
+  const stats = await comfy(cfg.comfyUrl, "/system_stats");
+  const argv = stats?.system?.argv || [];
+  const inputDir = argvFlag(argv, "--input-directory");
+  const outputDir = argvFlag(argv, "--output-directory");
+  const modelsDir = argvFlag(argv, "--models-directory");
+
+  const resolved = {
+    inputDir: inputDir || join(cfg.comfyRoot, "input"),
+    outputDir: outputDir || join(cfg.comfyRoot, "output"),
+    modelsDir: modelsDir || join(cfg.comfyRoot, "models"),
+  };
+
+  if (inputDir || outputDir || modelsDir) {
+    console.log("Live ComfyUI paths (from /system_stats):");
+    console.log(`  input:  ${resolved.inputDir}`);
+    console.log(`  output: ${resolved.outputDir}`);
+    console.log(`  models: ${resolved.modelsDir}`);
+  }
+
+  return resolved;
+}
+
 async function listDatasetImages(datasetDir) {
   const files = await readdir(datasetDir);
   const images = files
@@ -99,7 +132,7 @@ async function listDatasetImages(datasetDir) {
 }
 
 /**
- * Sync local dataset/images → ComfyUI/input/<folder>
+ * Sync local dataset/images → <live ComfyUI input>/<folder>
  * Clears previous png/txt in that folder first (keeps other files).
  */
 async function syncDataset(cfg) {
@@ -113,7 +146,7 @@ async function syncDataset(cfg) {
     throw new Error(`No images in ${datasetDir}`);
   }
 
-  const inputRoot = join(cfg.comfyRoot, "input");
+  const inputRoot = cfg.inputDir || join(cfg.comfyRoot, "input");
   const destDir = join(inputRoot, cfg.datasetFolder);
   await mkdir(destDir, { recursive: true });
 
@@ -139,21 +172,40 @@ async function syncDataset(cfg) {
   return { destDir, count: pairs.length };
 }
 
-async function ensureFolderVisible(cfg) {
+async function listTrainFolders(cfg) {
   const info = await comfy(cfg.comfyUrl, "/object_info/LoadImageTextDataSetFromFolder");
-  const opts =
+  return (
     info?.LoadImageTextDataSetFromFolder?.input?.required?.folder?.[1]?.options ||
-    [];
-  if (!opts.includes(cfg.datasetFolder)) {
-    console.warn(
-      `\nNote: folder "${cfg.datasetFolder}" is not in ComfyUI's cached folder list yet.`,
-    );
-    console.warn(
-      "If queue fails, restart ComfyUI once, or set datasetFolder in train-config.json",
-    );
-    console.warn(`to an existing folder such as: ${opts.slice(0, 5).join(", ")}`);
+    []
+  );
+}
+
+/**
+ * Ensure datasetFolder is accepted by LoadImageTextDataSetFromFolder.
+ * New folders are usually visible immediately once synced to the live input dir;
+ * if validation still caches the old list, fall back to a known folder name
+ * (re-sync images there for this run only).
+ */
+async function ensureFolderVisible(cfg) {
+  let opts = await listTrainFolders(cfg);
+  if (opts.includes(cfg.datasetFolder)) return opts;
+
+  // Schema may be cached from before the folder existed — brief retry.
+  for (let i = 0; i < 3; i++) {
+    await sleep(800);
+    opts = await listTrainFolders(cfg);
+    if (opts.includes(cfg.datasetFolder)) return opts;
   }
-  return opts;
+
+  console.warn(
+    `\nFolder "${cfg.datasetFolder}" not in ComfyUI's folder combo yet.`,
+  );
+  console.warn(`Synced under: ${join(cfg.inputDir, cfg.datasetFolder)}`);
+  throw new Error(
+    `ComfyUI has not refreshed its input-folder list.\n` +
+      `Restart ComfyUI (the process on ${cfg.comfyUrl}), then re-run: npm run train:sasha\n` +
+      `Known folders right now: ${opts.slice(0, 8).join(", ")}`,
+  );
 }
 
 function buildTrainWorkflow(cfg) {
@@ -321,7 +373,7 @@ async function copyOutputs(cfg, trainedPath) {
   const copies = [];
 
   if (cfg.copyToModelsLoras) {
-    const destDir = join(cfg.comfyRoot, "models", "loras");
+    const destDir = join(cfg.modelsDir || join(cfg.comfyRoot, "models"), "loras");
     await mkdir(destDir, { recursive: true });
     const dest = join(destDir, `${cfg.loraName}.safetensors`);
     copies.push(await installLoraFile(trainedPath, dest));
@@ -350,7 +402,10 @@ async function main() {
     throw new Error(`comfyRoot not found: ${cfg.comfyRoot}`);
   }
 
-  await comfy(cfg.comfyUrl, "/system_stats");
+  const live = await resolveLiveComfyDirs(cfg);
+  cfg.inputDir = live.inputDir;
+  cfg.outputDir = live.outputDir;
+  cfg.modelsDir = live.modelsDir;
 
   const { count } = await syncDataset(cfg);
   if (count < 5) {
@@ -376,7 +431,7 @@ async function main() {
   const mins = ((Date.now() - started) / 60000).toFixed(1);
   console.log(`Training finished in ${mins} min`);
 
-  const outputLorasDir = join(cfg.comfyRoot, "output", "loras");
+  const outputLorasDir = join(cfg.outputDir, "loras");
   // Give filesystem a moment
   await sleep(500);
   let trainedPath = await findNewestLora(outputLorasDir, cfg.loraName);

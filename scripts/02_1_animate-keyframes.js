@@ -29,12 +29,14 @@ import { join, dirname, basename, resolve, extname, relative } from "path";
 import { fileURLToPath } from "url";
 import {
   COMFY_ROOT,
+  resolveComfyDirs,
   parseArgs,
   sleep,
   stripBom,
   comfy,
   uploadImage,
   queueAndWait,
+  extractImageFromHistory,
 } from "../lib/comfy-client.js";
 import {
   KIDS_HIT_WAN_LENGTH,
@@ -43,6 +45,7 @@ import {
   kidsHitMotionPrompt,
   pickWanLength,
 } from "../lib/kids-hit.js";
+import { writePreviewMp4 } from "../lib/stitch-preview.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { flag, has } = parseArgs();
@@ -51,7 +54,7 @@ function songArgPath(songDir) {
   return relative(ROOT, songDir).replace(/\\/g, "/");
 }
 const MOTION_NEGATIVE =
-  "blurry, low quality, morphing face, extra limbs, distorted hands, text, watermark, photorealistic, sudden cut, flicker";
+  "blurry, low quality, morphing face, extra limbs, distorted hands, text, watermark, photorealistic, sudden cut, flicker, outfit change, clothing morph, different clothes, hat, beanie, cap, bag, purse, handbag, glasses, accessories, white t-shirt on mom, pink pants on mom, coral blouse missing, mint shirt change, navy pants change, three people, second child, extra person, twin, kiss, kissing, hug, hugging, embrace, snuggle, cuddle, wrapping arms, holding child, fused bodies, morphing bodies, extra arms, claw hands";
 
 function wanI2VWorkflow(cfg, imageName, motionPrompt, negative, seed) {
   return {
@@ -195,24 +198,29 @@ function wanI2VWorkflow(cfg, imageName, motionPrompt, negative, seed) {
   };
 }
 
-async function findNewestVideo(prefix) {
-  const dir = join(COMFY_ROOT, "output", "video");
-  if (!existsSync(dir)) return null;
-  const files = (await readdir(dir))
-    .filter((f) => f.toLowerCase().endsWith(".mp4") && f.includes(prefix))
-    .map((f) => join(dir, f));
-  if (!files.length) {
-    const all = (await readdir(dir))
-      .filter((f) => f.toLowerCase().endsWith(".mp4"))
+async function findNewestVideo(prefix, comfyUrl) {
+  const dirs = await resolveComfyDirs(comfyUrl || "http://127.0.0.1:8188");
+  const candidates = [
+    join(dirs.output, "video"),
+    join(COMFY_ROOT, "output", "video"),
+    dirs.output,
+    join(COMFY_ROOT, "output"),
+  ];
+  const pred = (f) =>
+    f.toLowerCase().endsWith(".mp4") && (!prefix || f.includes(prefix));
+  for (const dir of candidates) {
+    if (!existsSync(dir)) continue;
+    const files = (await readdir(dir))
+      .filter(pred)
       .map((f) => join(dir, f));
-    files.push(...all);
+    if (!files.length) continue;
+    const withStat = await Promise.all(
+      files.map(async (f) => ({ f, m: (await stat(f)).mtimeMs })),
+    );
+    withStat.sort((a, b) => b.m - a.m);
+    return withStat[0].f;
   }
-  if (!files.length) return null;
-  const withStat = await Promise.all(
-    files.map(async (f) => ({ f, m: (await stat(f)).mtimeMs })),
-  );
-  withStat.sort((a, b) => b.m - a.m);
-  return withStat[0].f;
+  return null;
 }
 
 function resolveSongDir(raw) {
@@ -334,10 +342,23 @@ function motionPromptFor(stem, actions, { kidsHit = false } = {}) {
       lyricHint: beat?.lyricHint || "",
       storyBeat: beat?.storyBeat || "",
       actionPhase: beat?.actionPhase || "",
+      beatRole: beat?.beatRole || "",
+      cameraMotion: beat?.cameraMotion || "",
+      interaction: beat?.interaction || "",
+      emotionIntensity: beat?.emotionIntensity || 0,
       cutMotivation: beat?.cutMotivation || "",
       bridge: !!beat?.bridge,
       enterDir: beat?.enterDir || "",
+      exitDir: beat?.exitDir || "",
+      placement: beat?.placement || null,
+      endPlacement: beat?.endPlacement || null,
       prevBeat,
+      hasHelper: !!(
+        beat?.placement?.Sasha ||
+        beat?.characters?.some((c) => /^sasha$/i.test(c?.name))
+      ),
+      proximity: beat?.proximity || "",
+      closeInteraction: !!beat?.closeInteraction,
     });
   }
 
@@ -448,7 +469,7 @@ async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
       ? Number(flag("--seed")) + n
       : (Date.now() + n * 17) >>> 0;
 
-    await queueAndWait(
+    const entry = await queueAndWait(
       comfyUrl,
       wanI2VWorkflow(
         { ...clipCfg, outName },
@@ -462,7 +483,30 @@ async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
     );
 
     await sleep(800);
-    const videoPath = await findNewestVideo(outName);
+    // Prefer exact outputs from this prompt_id — avoid stale mp4 reuse
+    let videoPath = null;
+    try {
+      for (const nodeId of Object.keys(entry.outputs || {})) {
+        const gifs = entry.outputs[nodeId].gifs || entry.outputs[nodeId].videos;
+        if (gifs?.length) {
+          const g = gifs[0];
+          const dirs = await resolveComfyDirs(comfyUrl);
+          const candidates = [
+            join(dirs.output, g.subfolder || "", g.filename),
+            join(dirs.output, "video", g.filename),
+            join(COMFY_ROOT, "output", g.subfolder || "", g.filename),
+            join(COMFY_ROOT, "output", "video", g.filename),
+          ];
+          videoPath = candidates.find((p) => existsSync(p)) || null;
+          if (videoPath) break;
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+    if (!videoPath) {
+      videoPath = await findNewestVideo(outName, comfyUrl);
+    }
     if (!videoPath) {
       throw new Error(`No Wan output found for ${stem} (prefix ${outName})`);
     }
@@ -477,6 +521,18 @@ async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
       length: clipCfg.length,
       comfySource: videoPath,
     });
+
+    // Progressive preview: concat finished clips + song audio so far
+    try {
+      const preview = await writePreviewMp4(songDir);
+      if (preview) {
+        console.log(
+          `PREVIEW_READY path=${preview.path} clips=${preview.clips} duration=${preview.durationSec.toFixed(1)}s`,
+        );
+      }
+    } catch (err) {
+      console.warn(`      preview stitch skipped: ${err?.message || err}`);
+    }
   }
 
   const manPath = join(clipsDir, "manifest.json");

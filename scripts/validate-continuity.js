@@ -3,7 +3,8 @@
  * Usage:
  *   node scripts/validate-continuity.js
  *   node scripts/validate-continuity.js --plan batches/_templates/continuity-golden-rainy-march.json
- *   node scripts/validate-continuity.js --song batches/20260730/rainy-day-march-2
+ *   node scripts/validate-continuity.js --song batches/20260730/marching-in-the-rain
+ *   node scripts/validate-continuity.js --song … --repair   (print repaired table)
  */
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -25,22 +26,28 @@ async function loadPlan() {
   const songArg = flag("--song", null);
   if (planArg) {
     const p = planArg.match(/^[A-Za-z]:/) ? planArg : join(ROOT, planArg);
-    return JSON.parse(stripBom(await readFile(p, "utf8")));
+    return { plan: JSON.parse(stripBom(await readFile(p, "utf8"))), songDir: null };
   }
   if (songArg) {
     const song = songArg.match(/^[A-Za-z]:/) ? songArg : join(ROOT, songArg);
     const p = join(song, "scenes", "actions.json");
     if (!existsSync(p)) throw new Error(`Missing ${p}`);
-    return JSON.parse(stripBom(await readFile(p, "utf8")));
+    return {
+      plan: JSON.parse(stripBom(await readFile(p, "utf8"))),
+      songDir: song,
+    };
   }
   const golden = join(
     ROOT,
     "batches/_templates/continuity-golden-rainy-march.json",
   );
-  return JSON.parse(stripBom(await readFile(golden, "utf8")));
+  return {
+    plan: JSON.parse(stripBom(await readFile(golden, "utf8"))),
+    songDir: null,
+  };
 }
 
-const plan = await loadPlan();
+const { plan, songDir } = await loadPlan();
 const theme = plan.theme || "rainy day indoor march";
 const allowed = kidsHitLocationPalette(theme, [
   "home",
@@ -53,10 +60,17 @@ const allowed = kidsHitLocationPalette(theme, [
   "hallway",
 ]);
 
+let lyricsText = "";
+if (songDir) {
+  const lp = join(songDir, "lyrics.txt");
+  if (existsSync(lp)) lyricsText = stripBom(await readFile(lp, "utf8"));
+}
+
 const repaired = repairKidsHitBeats(plan.beats || [], {
   theme,
   allowedLocations: allowed,
   durationSec: plan.durationSec || 75,
+  lyricsText,
 });
 const out = {
   ...plan,
@@ -81,11 +95,14 @@ console.table(
     arc: b.storyBeat,
     loc: b.location,
     bridge: !!b.bridge,
-    cause: String(b.cause || "").slice(0, 28),
-    effect: String(b.effect || "").slice(0, 28),
-    cut: b.cutMotivation,
-    phase: b.actionPhase,
+    slot: b.placement?.Adam,
+    end: b.endPlacement?.Adam,
+    exit: b.exitDir,
+    enter: b.enterDir,
+    t0: b.startSec,
+    t1: b.endSec,
     pose: b.characters?.[0]?.pose,
+    hint: String(b.lyricHint || "").slice(0, 24),
   })),
 );
 

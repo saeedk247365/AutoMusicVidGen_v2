@@ -3,13 +3,27 @@
   "name": "Sasha",
   "role": "mom",
   "trigger": "sashamom",
-  "checkpoint": "realcartoon3d_v15.safetensors",
   "age": "adult mother, about 30 years old",
+  "comfyUrl": "http://127.0.0.1:8188",
+  "checkpoint": "realcartoon3d_v15.safetensors",
+  "loraName": "sashamom_character_v1.safetensors",
+  "loraStrength": 0.28,
+  "seed": 888201,
+  "width": 512,
+  "height": 768,
+  "steps": 28,
+  "cfg": 7,
+  "sampler": "dpmpp_2m",
+  "scheduler": "karras",
+  "faceIdWeight": 0.85,
+  "faceIdWeightV2": 0.85,
+  "openPoseStrength": 0.92,
+  "openImages": true,
+  "styleTag": "adult woman cartoon proportions, mother character only",
   "style": "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, soft even studio lighting, plain solid light gray background, not realistic",
   "appearance": "cute cartoon adult mom named Sasha, feminine soft face, shoulder-length wavy soft brown hair with gentle side part, big warm hazel eyes, small nose, kind bright smile, fair skin with light rosy cheeks, slim graceful build, average adult height",
-  "outfit": "ALWAYS identical outfit: solid soft coral pink short-sleeve blouse (no logo, no patterns), solid cream long pants, plain white sneakers, empty hands",
-  "negative": "photo, photorealistic, 3d render, pixar, disney 3d, child, toddler, baby, teen, masculine, man, beard, heavy makeup, lipstick bold, mask, sunglasses, hat, logo, print, holding object, dark background, room interior, furniture, text, watermark, blurry, duplicate, twin, two people, character sheet, collage, grid",
-  "seed": 888201,
+  "outfit": "solid soft coral pink short-sleeve blouse ONLY, solid cream long pants ONLY, plain white sneakers, adult mom outfit every image, never white t-shirt, never pink pants",
+  "negative": "photo, photorealistic, 3d render, pixar, disney 3d, child, toddler, baby, teen, teenager, sister, masculine, man, beard, heavy makeup, lipstick bold, mask, sunglasses, hat, beanie, logo, print, holding object, handbag, purse, white t-shirt, white tee, pale t-shirt, mint shirt, green shirt, pink pants, pink trousers, salmon pants, cropped pants, dark background, room interior, furniture, text, watermark, blurry, duplicate, twin, two people, character sheet, collage, grid",
   "keyframes": [
     {
       "id": "front_stand",
@@ -30,6 +44,144 @@
       "id": "bust_smile",
       "angle": "front view bust portrait, looking at camera",
       "pose": "friendly mom smile, shoulders visible, warm expression"
+    }
+  ],
+  "shots": [
+    {
+      "id": "01_front_stand",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing straight, arms relaxed at sides, feet slightly apart, slim adult mom proportions",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, front view, adult mom"
+    },
+    {
+      "id": "02_side_stand",
+      "angleKey": "side_left",
+      "angle": "strict left profile side view, 90 degrees, body and face both facing left, natural neck, only one eye and one ear visible, nose pointing left, NOT facing camera, NOT twisting head toward camera",
+      "pose": "standing straight, arms at sides, head aligned with torso",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, left profile, adult mom",
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, looking at viewer, twisted neck, looking over shoulder, eye contact"
+    },
+    {
+      "id": "03_threequarter_stand",
+      "angleKey": "threequarter_left",
+      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body looking left-forward, natural neck alignment, NOT facing camera, NOT twisting head toward camera",
+      "pose": "standing straight, arms at sides, slim adult mom proportions",
+      "poseKey": "stand",
+      "expression": "neutral",
+      "captionExtra": "standing, three-quarter left, adult mom",
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, twisted neck, looking over shoulder, straight-on portrait, eye contact"
+    },
+    {
+      "id": "04_kneeling",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "adult mom kneeling down to toddler height, knees on floor, gentle smile, arms open welcoming, exactly two clear legs",
+      "poseKey": "sit",
+      "expression": "happy",
+      "captionExtra": "kneeling, front view, adult mom",
+      "extraNegative": "ghost legs, double legs, fused legs, standing upright, toddler"
+    },
+    {
+      "id": "05_walking",
+      "angleKey": "threequarter_right",
+      "angle": "three-quarter view from the right, body turned 40 degrees to the right, face turned with body, NOT facing camera",
+      "pose": "adult mom walking mid-stride, left leg forward, arms swinging naturally, exactly two legs only",
+      "poseKey": "walk",
+      "expression": "neutral",
+      "captionExtra": "walking, three-quarter right, adult mom",
+      "extraNegative": "front view, facing camera, ghost legs, double legs, extra legs, eye contact, toddler"
+    },
+    {
+      "id": "06_hands_open",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing adult mom, both arms raised open in a welcoming gesture, warm smile",
+      "poseKey": "hands_up",
+      "expression": "happy",
+      "captionExtra": "arms open welcoming, front view, adult mom"
+    },
+    {
+      "id": "07_pointing",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, right arm extended pointing forward, left arm at side, adult mom proportions",
+      "poseKey": "point",
+      "expression": "neutral",
+      "captionExtra": "pointing, front view, adult mom"
+    },
+    {
+      "id": "08_waving",
+      "angleKey": "front",
+      "angle": "front view, body facing camera, looking at camera",
+      "pose": "standing, right arm raised waving hello, left arm at side, slim adult mom stance",
+      "poseKey": "wave",
+      "expression": "happy",
+      "captionExtra": "waving, front view, adult mom"
+    },
+    {
+      "id": "09_happy_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "happy mom smile, warm hazel eyes, shoulder-length wavy brown hair visible, shoulders visible",
+      "poseKey": "bust",
+      "expression": "happy",
+      "captionExtra": "happy expression, close face, adult mom",
+      "bust": true
+    },
+    {
+      "id": "10_sad_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "sad mom expression, downturned mouth, soft watery eyes, same face identity, shoulders visible",
+      "poseKey": "bust",
+      "expression": "sad",
+      "captionExtra": "sad expression, close face, adult mom",
+      "bust": true
+    },
+    {
+      "id": "11_surprised_expression",
+      "angleKey": "front",
+      "angle": "front view close-up bust portrait, head and shoulders, looking at camera",
+      "pose": "surprised mom expression, round open mouth, wide eyes, same face identity, shoulders visible",
+      "poseKey": "bust",
+      "expression": "surprised",
+      "captionExtra": "surprised expression, close face, adult mom",
+      "bust": true
+    },
+    {
+      "id": "12_close_face",
+      "angleKey": "front",
+      "angle": "front view tight close-up face portrait, looking at camera",
+      "pose": "neutral friendly mom face, clear eyes nose mouth hair silhouette, shoulders barely visible",
+      "poseKey": "bust",
+      "expression": "neutral",
+      "captionExtra": "close face, portrait, adult mom",
+      "bust": true
+    },
+    {
+      "id": "13_side_walk",
+      "angleKey": "side_right",
+      "angle": "strict right profile side view, 90 degrees, body and face both facing right, natural neck, only one eye and one ear visible, nose pointing right, NOT facing camera",
+      "pose": "adult mom walking mid-stride, arms swinging, head aligned with torso",
+      "poseKey": "walk",
+      "expression": "neutral",
+      "captionExtra": "walking, right profile, adult mom",
+      "extraNegative": "front view, facing camera, both eyes visible equally, looking at camera, ghost legs, double legs, eye contact"
+    },
+    {
+      "id": "14_threequarter_wave",
+      "angleKey": "threequarter_left",
+      "angle": "three-quarter view from the left, body turned 40 degrees to the left, face turned with body, NOT facing camera straight on",
+      "pose": "standing, left arm raised waving, right arm at side, adult mom proportions",
+      "poseKey": "wave",
+      "expression": "happy",
+      "captionExtra": "waving, three-quarter left, adult mom",
+      "extraNegative": "front view, facing camera, looking at viewer, looking at camera, straight-on portrait, eye contact"
     }
   ]
 }
