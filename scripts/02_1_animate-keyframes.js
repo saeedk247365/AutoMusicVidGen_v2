@@ -589,12 +589,15 @@ async function main() {
     fps: Number(flag("--fps", "16")),
   };
 
-  const comfyUrl = flag("--comfy", "http://127.0.0.1:8188");
+  const { resolveComfyUrl } = await import("../lib/gpu-backend.js");
+  const comfyUrl =
+    flag("--comfy", null) || resolveComfyUrl() || "http://127.0.0.1:8188";
   console.log("02_1 Animate keyframes — Wan 2.2 I2V");
   console.log(
     `  ${cfg.width}x${cfg.height} length=${cfg.length} fps=${cfg.fps} steps=${cfg.steps}` +
       (kidsHit ? " [kids-hit/energetic]" : ""),
   );
+  console.log(`  Comfy: ${comfyUrl}`);
 
   await comfy(comfyUrl, "/system_stats");
 

@@ -1,0 +1,7 @@
+# Build context is docker/salad/ — keep bake assets, skip junk
+**/.git
+**/__pycache__
+**/*.pyc
+**/*.md
+!README.md
+bake/**/*.txt

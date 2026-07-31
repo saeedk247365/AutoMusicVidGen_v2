@@ -11,6 +11,24 @@
     <div class="brand">mvid</div>
     <div class="status" id="statusMsg"><%= initial.statusMessage || "Starting…" %></div>
     <div class="stage-pill" id="stagePill"><%= initial.stage || "idle" %></div>
+    <label class="auto-toggle" title="Use Salad Cloud GPU when SALAD_COMFY_URL is set">
+      GPU
+      <select id="gpuBackend">
+        <option value="local" <%= (initial.gpu && initial.gpu.backend) !== "salad" ? "selected" : "" %>>Local</option>
+        <option value="salad" <%= (initial.gpu && initial.gpu.backend) === "salad" ? "selected" : "" %>>Salad Cloud</option>
+      </select>
+    </label>
+    <div class="run-controls">
+      <button type="button" id="btnPause" class="btn" title="Pause generation (kills current worker, holds until Resume)">Pause</button>
+      <button type="button" id="btnResume" class="btn" disabled title="Resume after pause">Resume</button>
+      <button type="button" id="btnStop" class="btn danger" title="Hard-stop pipeline">Stop</button>
+    </div>
+    <div class="salad-controls" title="Salad container billing controls">
+      <span class="salad-pill" id="saladStatusPill">Salad: —</span>
+      <button type="button" id="btnSaladRefresh" class="btn tiny">Status</button>
+      <button type="button" id="btnSaladStart" class="btn tiny">Start</button>
+      <button type="button" id="btnSaladStop" class="btn tiny danger">Shutdown</button>
+    </div>
     <label class="auto-toggle" title="Skip all approval gates">
       <input type="checkbox" id="autoApprove" <%= initial.autoApprove ? "checked" : "" %> />
       Auto-approve all
@@ -22,7 +40,8 @@
   </header>
 
   <nav class="tabs" id="tabNav">
-    <button type="button" data-tab="lyrics" class="active">Lyrics</button>
+    <button type="button" data-tab="setup" class="active">Cast &amp; Scenes</button>
+    <button type="button" data-tab="lyrics">Lyrics</button>
     <button type="button" data-tab="song">Song</button>
     <button type="button" data-tab="storyline">Storyline</button>
     <button type="button" data-tab="scenes">Scenes</button>
@@ -33,7 +52,39 @@
   </nav>
 
   <main class="panes">
-    <section class="pane active" id="pane-lyrics">
+    <section class="pane active" id="pane-setup">
+      <p class="hint">Pick cast and rooms first. Optional title/objective lock lyric generation.</p>
+      <div class="setup-grid">
+        <div>
+          <h3>Cast</h3>
+          <div id="castList" class="check-list empty">Loading characters…</div>
+          <details class="create-box">
+            <summary>Create character</summary>
+            <input id="newCharName" placeholder="Name" />
+            <select id="newCharRole">
+              <option value="toddler">toddler</option>
+              <option value="helper">helper / mom</option>
+              <option value="other">other</option>
+            </select>
+            <textarea id="newCharAppearance" rows="2" placeholder="Appearance…"></textarea>
+            <textarea id="newCharOutfit" rows="2" placeholder="Outfit…"></textarea>
+            <button type="button" id="btnCreateChar" class="btn">Save character</button>
+          </details>
+        </div>
+        <div>
+          <h3>Scenes</h3>
+          <div id="setupScenesList" class="check-list empty">Loading scenes…</div>
+        </div>
+        <div>
+          <h3>Brief (optional locks)</h3>
+          <label class="field">Title <input id="setupTitle" placeholder="Song title" /></label>
+          <label class="field">Objective <input id="setupObjective" placeholder="One toddler goal" /></label>
+          <label class="field">Theme hint <input id="setupTheme" placeholder="e.g. rainy day indoor march" /></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-lyrics">
       <p class="hint">Edit lyrics before approving. TITLE / OBJECTIVE lines are kept.</p>
       <textarea id="lyricsText" spellcheck="true" placeholder="Lyrics will appear here…"></textarea>
     </section>

@@ -15,6 +15,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parseArgs } from "../lib/comfy-client.js";
 import { DEFAULT_COMFY_URL } from "../lib/ensure-comfy.js";
+import { resolveComfyUrl, setGpuBackend, gpuStatus } from "../lib/gpu-backend.js";
 import { MvidOrchestrator } from "../lib/mvid-orchestrator.js";
 import { createMvidServer } from "../lib/mvid-server.js";
 
@@ -28,6 +29,8 @@ const OWN = new Set([
   "--comfy",
   "--port",
   "--auto-approve",
+  "--salad",
+  "--gpu",
   "--help",
   "-h",
 ]);
@@ -41,10 +44,11 @@ function printHelp() {
   npm run mvid -- --song batches/<date>/<slug>
   npm run mvid -- --classic
   npm run mvid -- --auto-approve
+  npm run mvid -- --salad
   npm run mvid -- --port 3847
 
-Opens a browser UI with tabs for lyrics, song, storyline, scenes, scripts,
-keyframes, clips, and final. Approve each stage (or enable Auto-approve all).
+Opens a browser UI with Cast & Scenes first, then lyrics → final.
+Toggle Local / Salad Cloud GPU in the toolbar (needs SALAD_* in .env).
 
 Kids-hit is the default. Pass --classic for the longer path.`);
 }
@@ -54,7 +58,7 @@ function passthroughArgs() {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (OWN.has(a)) {
-      if (a === "--song" || a === "--comfy" || a === "--port") i += 1;
+      if (a === "--song" || a === "--comfy" || a === "--port" || a === "--gpu") i += 1;
       continue;
     }
     out.push(a);
@@ -68,8 +72,17 @@ async function main() {
     return;
   }
 
+  if (has("--salad") || flag("--gpu", "") === "salad") {
+    const r = setGpuBackend("salad");
+    if (!r.ok) {
+      console.warn(`Salad GPU not ready: ${r.error}`);
+    }
+  } else if (flag("--gpu", "")) {
+    setGpuBackend(flag("--gpu"));
+  }
+
   const kidsHit = !has("--classic");
-  const comfyUrl = flag("--comfy", DEFAULT_COMFY_URL);
+  const comfyUrl = flag("--comfy", null) || resolveComfyUrl() || DEFAULT_COMFY_URL;
   const port = Number(flag("--port", "3847"));
   const songArg = flag("--song", null);
   const autoApprove = has("--auto-approve");
@@ -80,6 +93,7 @@ async function main() {
       ? "mvid — interactive kids-hit music video"
       : "mvid — interactive classic music video",
   );
+  console.log(`GPU: ${gpuStatus().backend} → ${comfyUrl}`);
   console.log("════════════════════════════════════════════════════════");
 
   const orchestrator = new MvidOrchestrator({

@@ -90,9 +90,37 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, "..");
 const CHAR_PATH = join(ROOT, "characters", "adam.json");
 const CHARACTERS_DIR = join(ROOT, "characters");
-/** Adam (toddler) + Sasha (mom) — story beats may include one or both. */
-const CAST_IDS = ["adam", "sasha"];
+/** Default cast — override with --cast id1,id2 */
+let CAST_IDS = ["adam", "sasha"];
+let CHAR_NAME_RE = /^(adam|sasha)$/i;
+let ALLOWED_LOCATION_IDS = null;
+let LOCKED_TITLE = "";
+let LOCKED_OBJECTIVE = "";
 const SCENES_DIR = join(ROOT, "scenes");
+
+function applyCastCli(flagFn) {
+  const castFlag = flagFn("--cast", null);
+  if (castFlag) {
+    CAST_IDS = String(castFlag)
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  if (!CAST_IDS.length) CAST_IDS = ["adam", "sasha"];
+  const alt = CAST_IDS.map((id) =>
+    id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  ).join("|");
+  CHAR_NAME_RE = new RegExp(`^(${alt})$`, "i");
+  const locFlag = flagFn("--locations", null);
+  if (locFlag) {
+    ALLOWED_LOCATION_IDS = String(locFlag)
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  LOCKED_TITLE = String(flagFn("--title", "") || "").trim();
+  LOCKED_OBJECTIVE = String(flagFn("--objective", "") || "").trim();
+}
 const ACE_ROOT =
   "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ACE-Step-1.5";
 const ACE_PYTHON = join(ACE_ROOT, ".venv", "Scripts", "python.exe");
@@ -421,7 +449,7 @@ const CANONICAL_FACINGS = {
     "three-quarter view from right, body angled slightly right, head facing camera",
 };
 
-const CHAR_NAME_RE = /^(adam|sasha)$/i;
+// CHAR_NAME_RE set in applyCastCli()
 
 /** Other cast triggers to ban when generating a solo plate */
 const CAST_SOLO_NEGATIVES = {
@@ -1305,12 +1333,23 @@ async function qwenGenerateLyrics(model, temperature, ctx) {
       : "- (none yet)";
   const mood = ctx.kidsHit ? kidsHitMood(ctx.theme) : "energetic";
   const template = ctx.kidsHit ? KIDS_HIT_LYRICS_PROMPT : QWEN_LYRICS_PROMPT;
-  const prompt = template
+  let prompt = template
     .replaceAll("{{THEME}}", ctx.theme)
     .replaceAll("{{EDU_FOCUS}}", ctx.eduFocus)
     .replaceAll("{{MOVEMENT}}", ctx.movement)
     .replaceAll("{{USED_TITLES}}", used)
     .replaceAll("{{MOOD}}", mood);
+  if (ctx.lockedTitle || ctx.lockedObjective || ctx.castNames || ctx.locations) {
+    prompt += `\n\nSETUP LOCKS (must obey):\n`;
+    if (ctx.lockedTitle) {
+      prompt += `LOCKED TITLE (use exactly): ${ctx.lockedTitle}\n`;
+    }
+    if (ctx.lockedObjective) {
+      prompt += `LOCKED OBJECTIVE (use exactly): ${ctx.lockedObjective}\n`;
+    }
+    if (ctx.castNames) prompt += `Cast in this song: ${ctx.castNames}\n`;
+    if (ctx.locations) prompt += `Allowed places: ${ctx.locations}\n`;
+  }
   const system = ctx.kidsHit
     ? "You are a preschool hit songwriter. Follow the user format exactly. Output only TITLE and LYRICS. Keep the song short, concrete rhymes only, home-set. Never write nonsense end-words."
     : "You are a world-class preschool songwriter. Follow the user format exactly. Output only TITLE and LYRICS.";
@@ -1931,10 +1970,16 @@ function uniqueSlug(base, used, batchDir) {
 
 async function main() {
   const { flag, has } = parseArgs();
+  applyCastCli(flag);
   const characterRoot = existsSync(CHAR_PATH)
     ? JSON.parse(stripBom(await readFile(CHAR_PATH, "utf8")))
     : {};
-  const comfyUrl = characterRoot.comfyUrl || "http://127.0.0.1:8188";
+  const { resolveComfyUrl } = await import("../lib/gpu-backend.js");
+  const comfyUrl =
+    flag("--comfy", null) ||
+    resolveComfyUrl() ||
+    characterRoot.comfyUrl ||
+    "http://127.0.0.1:8188";
 
   const count = Math.max(1, Number(flag("--count", String(SETTINGS.count))));
   const bpm = Number(flag("--bpm", String(SETTINGS.bpm)));
@@ -1967,6 +2012,13 @@ async function main() {
     : kidsHit
       ? KIDS_HIT_DURATION_SEC
       : SETTINGS.duration;
+
+  console.log(`Cast: ${CAST_IDS.join(", ")} · Comfy: ${comfyUrl}`);
+  if (LOCKED_TITLE) console.log(`Locked title: ${LOCKED_TITLE}`);
+  if (LOCKED_OBJECTIVE) console.log(`Locked objective: ${LOCKED_OBJECTIVE}`);
+  if (ALLOWED_LOCATION_IDS?.length) {
+    console.log(`Locations: ${ALLOWED_LOCATION_IDS.join(", ")}`);
+  }
 
   const { cast, scenes: scenePack } = await loadFamilyCast();
   const sharedCharsDir = CHARACTERS_DIR;
@@ -2324,11 +2376,21 @@ async function main() {
   const themePool = kidsHit ? HOME_THEMES : THEMES;
   const batchThemes = takeUnique(themePool, count);
   while (batchThemes.length < count) batchThemes.push(pick(themePool));
-  const locations = scenePack.scenes.map((s) => s.id);
+  const locations = (
+    ALLOWED_LOCATION_IDS?.length
+      ? scenePack.scenes.filter((s) => ALLOWED_LOCATION_IDS.includes(s.id))
+      : scenePack.scenes
+  ).map((s) => s.id);
+  if (!locations.length) {
+    throw new Error("No allowed locations — check --locations against scenes.json");
+  }
 
   for (let i = 1; i <= count; i++) {
     console.log(`\n══ Song ${i}/${count}`);
-    const theme = flag("--theme", null) || batchThemes[i - 1];
+    const theme =
+      flag("--theme", null) ||
+      LOCKED_TITLE ||
+      batchThemes[i - 1];
     const mood = kidsHit ? kidsHitMood(theme) : "energetic";
     const style = kidsHit
       ? kidsHitStyleForMood(mood, KIDS_HIT_STYLES)
@@ -2359,13 +2421,22 @@ async function main() {
           (kidsHit ? `  mood=${mood}` : ""),
       );
       console.log("  (pipeline: lyrics → ACE song → beat plan → keyframes)");
+      const castNames = CAST_IDS.map(
+        (id) => cast[id]?.name || id,
+      ).join(", ");
       ({ title, lyrics, objective } = await qwenGenerateLyrics(qwenModel, SETTINGS.qwenTemperature, {
         theme,
         eduFocus,
         movement,
         usedTitles,
         kidsHit,
+        lockedTitle: LOCKED_TITLE,
+        lockedObjective: LOCKED_OBJECTIVE,
+        castNames,
+        locations: locations.join(", "),
       }));
+      if (LOCKED_TITLE) title = LOCKED_TITLE;
+      if (LOCKED_OBJECTIVE) objective = LOCKED_OBJECTIVE;
       if (kidsHit) objective = objective || objectiveForTheme(theme);
       usedTitles.push(title);
       slug = uniqueSlug(slugify(title), usedSlugs, batchDir);
@@ -2403,6 +2474,8 @@ async function main() {
             bpm,
             steps,
             batchDir,
+            castIds: CAST_IDS,
+            locationIds: locations,
           },
           null,
           2,

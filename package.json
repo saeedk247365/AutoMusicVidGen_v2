@@ -6,6 +6,9 @@
   "scripts": {
     "comfy": "node scripts/start-comfy.js",
     "mvid": "node scripts/run-mvid.js",
+    "mvid:salad-test": "node scripts/test-salad-gpu.js --salad",
+    "salad:deploy": "node scripts/salad-deploy.js",
+    "salad:status": "node -e \"import('./lib/salad-containers.js').then(m=>m.saladContainerStatus().then(s=>console.log(JSON.stringify(s,null,2))))\"",
     "mvid:lyrics": "node scripts/02_0_generate-lyrics+song+scene+keyframes.js --kids-hit",
     "mvid:chars": "node scripts/02_0_generate-lyrics+song+scene+keyframes.js --kids-hit --chars-only",
     "mvid:animate": "node scripts/02_1_animate-keyframes.js --kids-hit",

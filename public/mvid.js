@@ -12,6 +12,7 @@
   const logEl = $("log");
 
   const TAB_TO_GATE = {
+    setup: "setup",
     lyrics: "lyrics",
     song: "song",
     storyline: "plan",
@@ -22,7 +23,8 @@
     final: "final",
   };
 
-  let activeTab = "lyrics";
+  let activeTab = "setup";
+  let setupLoaded = false;
 
   function log(msg) {
     const line = document.createElement("div");
@@ -37,13 +39,127 @@
     return state.stage.replace(/^await_/, "");
   }
 
+  function collectSetupPayload() {
+    const castIds = [...document.querySelectorAll("#castList input[type=checkbox]:checked")].map(
+      (el) => el.value,
+    );
+    const locationIds = [
+      ...document.querySelectorAll("#setupScenesList input[type=checkbox]:checked"),
+    ].map((el) => el.value);
+    return {
+      castIds,
+      locationIds,
+      title: $("setupTitle")?.value?.trim() || "",
+      objective: $("setupObjective")?.value?.trim() || "",
+      theme: $("setupTheme")?.value?.trim() || "",
+    };
+  }
+
+  async function loadSetupLists() {
+    if (setupLoaded) return;
+    try {
+      const [charsRes, scenesRes] = await Promise.all([
+        fetch("/api/characters"),
+        fetch("/api/scenes"),
+      ]);
+      const chars = await charsRes.json();
+      const scenes = await scenesRes.json();
+      const castEl = $("castList");
+      const selected = new Set(state.setup?.castIds || ["adam", "sasha"]);
+      if (chars.ok) {
+        castEl.className = "check-list";
+        castEl.innerHTML = (chars.characters || [])
+          .map(
+            (c) => `<label>
+              <input type="checkbox" value="${esc(c.id)}" ${selected.has(c.id) ? "checked" : ""} />
+              <span><strong>${esc(c.name)}</strong> <span class="meta">${esc(c.role)}${c.hasLora ? " · LoRA" : ""}</span>
+              <div class="meta">${esc((c.appearance || "").slice(0, 90))}</div></span>
+            </label>`,
+          )
+          .join("");
+      }
+      const locEl = $("setupScenesList");
+      const locSel = new Set(state.setup?.locationIds || []);
+      if (scenes.ok) {
+        locEl.className = "check-list";
+        locEl.innerHTML = (scenes.scenes || [])
+          .map((s) => {
+            const checked = !locSel.size || locSel.has(s.id) ? "checked" : "";
+            return `<label>
+              <input type="checkbox" value="${esc(s.id)}" ${checked} />
+              <span><strong>${esc(s.name || s.id)}</strong>
+              ${s.thumbUrl ? `<div><img src="${s.thumbUrl}" alt="" style="max-width:100%;border-radius:4px;margin-top:4px" /></div>` : ""}
+              </span>
+            </label>`;
+          })
+          .join("");
+      }
+      if (state.setup?.title) $("setupTitle").value = state.setup.title;
+      if (state.setup?.objective) $("setupObjective").value = state.setup.objective;
+      if (state.setup?.theme) $("setupTheme").value = state.setup.theme;
+      setupLoaded = true;
+    } catch (err) {
+      log(`Setup load failed: ${err.message || err}`);
+    }
+  }
+
   function updateButtons() {
     const gate = waitingGate();
-    const enabled = !!gate && !autoApprove.checked;
+    const paused = !!state.paused;
+    const stopped = !!state.stopped || state.stage === "stopped";
+    const enabled = !!gate && !autoApprove.checked && !paused && !stopped;
     btnApprove.disabled = !enabled;
-    btnReject.disabled = !enabled || gate === "final";
-    // On final, still allow approve to mark done; reject regenerates stitch
+    btnReject.disabled = !enabled || gate === "final" || gate === "setup";
     if (gate === "final") btnReject.disabled = !enabled;
+    if (gate === "setup") {
+      btnApprove.disabled = !enabled;
+      btnReject.disabled = true;
+    }
+    const btnPause = $("btnPause");
+    const btnResume = $("btnResume");
+    const btnStop = $("btnStop");
+    if (btnPause) btnPause.disabled = paused || stopped || state.stage === "done";
+    if (btnResume) btnResume.disabled = !paused || stopped;
+    if (btnStop) btnStop.disabled = stopped || state.stage === "done";
+  }
+
+  async function refreshSaladStatus() {
+    const pill = $("saladStatusPill");
+    if (!pill) return;
+    try {
+      const res = await fetch("/api/salad/status");
+      const data = await res.json();
+      state.salad = data;
+      if (!data.configured) {
+        pill.textContent = "Salad: set SALAD_ORG";
+        pill.className = "salad-pill warn";
+        return;
+      }
+      if (!data.ok) {
+        pill.textContent = `Salad: ${data.error || "error"}`.slice(0, 48);
+        pill.className = "salad-pill err";
+        return;
+      }
+      const g = data.group;
+      if (g) {
+        const st = g.currentState?.status || g.currentState || "?";
+        const run = g.running != null ? ` · ${g.running} run` : "";
+        pill.textContent = `Salad: ${st}${run}`;
+        pill.className = /stop|fail/i.test(String(st))
+          ? "salad-pill warn"
+          : "salad-pill ok";
+      } else if (data.groups) {
+        pill.textContent = `Salad: ${data.groups.length} group(s)`;
+        pill.className = "salad-pill ok";
+      } else {
+        pill.textContent = "Salad: ok";
+        pill.className = "salad-pill ok";
+      }
+    } catch (err) {
+      pill.textContent = "Salad: unreachable";
+      pill.className = "salad-pill err";
+      log(`Salad status: ${err.message || err}`);
+    }
   }
 
   function selectTab(name) {
@@ -257,25 +373,31 @@
     if (s.statusMessage) statusMsg.textContent = s.statusMessage;
     if (s.stage) stagePill.textContent = s.stage;
     if (typeof s.autoApprove === "boolean") autoApprove.checked = s.autoApprove;
+    if (typeof s.paused === "boolean") state.paused = s.paused;
+    if (typeof s.stopped === "boolean") state.stopped = s.stopped;
+    if (s.gpu?.backend && $("gpuBackend")) $("gpuBackend").value = s.gpu.backend;
     if (s.tabs) renderAll(s.tabs);
     updateButtons();
+    loadSetupLists();
 
     const gate = waitingGate();
-    if (gate) {
+    if (gate && !state.paused) {
       const tab =
-        gate === "plan"
-          ? "storyline"
-          : gate === "song"
-            ? "song"
-            : gate === "lyrics"
-              ? "lyrics"
-              : gate === "keyframes"
-                ? "keyframes"
-                : gate === "clips"
-                  ? "clips"
-                  : gate === "final"
-                    ? "final"
-                    : activeTab;
+        gate === "setup"
+          ? "setup"
+          : gate === "plan"
+            ? "storyline"
+            : gate === "song"
+              ? "song"
+              : gate === "lyrics"
+                ? "lyrics"
+                : gate === "keyframes"
+                  ? "keyframes"
+                  : gate === "clips"
+                    ? "clips"
+                    : gate === "final"
+                      ? "final"
+                      : activeTab;
       selectTab(tab);
     }
   }
@@ -305,12 +427,107 @@
     updateButtons();
   });
 
+  $("gpuBackend")?.addEventListener("change", async () => {
+    const backend = $("gpuBackend").value;
+    const res = await fetch("/api/gpu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ backend }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      log(`GPU switch failed: ${data.error || res.status}`);
+      $("gpuBackend").value = state.gpu?.backend || "local";
+      return;
+    }
+    state.gpu = data;
+    log(
+      `GPU → ${data.backend} (${data.comfyUrl})${data.comfyUp ? " · up" : " · not reachable yet"}`,
+    );
+  });
+
+  $("btnPause")?.addEventListener("click", async () => {
+    const res = await fetch("/api/pause", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`Pause failed: ${data.error}`);
+    else log(`Paused (from ${data.from || "?"})`);
+    state.paused = true;
+    updateButtons();
+  });
+
+  $("btnResume")?.addEventListener("click", async () => {
+    const res = await fetch("/api/resume", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`Resume failed: ${data.error}`);
+    else log(`Resumed`);
+    state.paused = false;
+    updateButtons();
+  });
+
+  $("btnStop")?.addEventListener("click", async () => {
+    if (!confirm("Stop the pipeline? You will need to restart mvid to continue.")) return;
+    const res = await fetch("/api/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Stopped by user" }),
+    });
+    const data = await res.json();
+    log(data.ok ? "Stopped" : `Stop failed: ${data.error}`);
+    state.stopped = true;
+    state.paused = false;
+    updateButtons();
+  });
+
+  $("btnSaladRefresh")?.addEventListener("click", () => refreshSaladStatus());
+  $("btnSaladStart")?.addEventListener("click", async () => {
+    log("Starting Salad container…");
+    const res = await fetch("/api/salad/start", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`Salad start failed: ${data.error}`);
+    else log("Salad start requested (billing begins when instances run)");
+    await refreshSaladStatus();
+  });
+  $("btnSaladStop")?.addEventListener("click", async () => {
+    if (!confirm("Shutdown Salad container group to stop GPU billing?")) return;
+    log("Stopping Salad container…");
+    const res = await fetch("/api/salad/stop", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`Salad shutdown failed: ${data.error}`);
+    else log("Salad shutdown requested");
+    await refreshSaladStatus();
+  });
+
+  $("btnCreateChar")?.addEventListener("click", async () => {
+    const name = $("newCharName").value.trim();
+    if (!name) return log("Character name required");
+    const res = await fetch("/api/characters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        role: $("newCharRole").value,
+        appearance: $("newCharAppearance").value,
+        outfit: $("newCharOutfit").value,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) return log(`Create character failed: ${data.error}`);
+    log(`Created character ${data.character.id}`);
+    setupLoaded = false;
+    await loadSetupLists();
+  });
+
   btnApprove.addEventListener("click", async () => {
     const gate = waitingGate();
     if (!gate) return;
     const payload = {};
+    if (gate === "setup") Object.assign(payload, collectSetupPayload());
     if (gate === "lyrics") payload.text = lyricsText.value;
     if (gate === "plan") payload.raw = planRaw.value;
+    if (gate === "setup" && !payload.castIds?.length) {
+      log("Pick at least one cast member");
+      return;
+    }
     btnApprove.disabled = true;
     btnReject.disabled = true;
     const res = await fetch("/api/approve", {
@@ -354,7 +571,11 @@
       const msg = JSON.parse(ev.data);
       if (msg.type === "log") log(msg.message);
       else if (msg.type === "tabs") renderAll(msg.tabs);
-      else if (msg.type === "stage" || msg.type === "state" || msg.type === "auto_approve") {
+      else if (msg.type === "gpu") {
+        state.gpu = msg;
+        if ($("gpuBackend") && msg.backend) $("gpuBackend").value = msg.backend;
+        log(`GPU: ${msg.backend} → ${msg.comfyUrl}`);
+      } else if (msg.type === "stage" || msg.type === "state" || msg.type === "auto_approve") {
         applyState(msg);
         if (msg.message) log(msg.message);
       }
@@ -367,4 +588,5 @@
   applyState(state);
   renderAll(state.tabs || {});
   log("Connected to mvid GUI");
+  refreshSaladStatus();
 })();
