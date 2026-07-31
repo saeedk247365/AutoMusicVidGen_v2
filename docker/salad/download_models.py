@@ -52,9 +52,9 @@ def download_one(item: dict) -> None:
 
     parsed = parse_hf_url(url)
     try:
-        if parsed:
-            import shutil
+        import shutil
 
+        if parsed:
             repo_id, revision, filepath = parsed
             cached = hf_hub_download(
                 repo_id=repo_id,
@@ -64,17 +64,12 @@ def download_one(item: dict) -> None:
             )
             shutil.copy2(cached, dest)
         else:
-            import requests
-            import shutil
+            # GitHub releases / arbitrary HTTPS
+            import urllib.request
 
-            with requests.get(url, stream=True, timeout=120, headers={"User-Agent": "amvg-salad"}) as r:
-                r.raise_for_status()
-                tmp = dest.with_suffix(dest.suffix + ".partial")
-                with open(tmp, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        if chunk:
-                            f.write(chunk)
-                tmp.replace(dest)
+            tmp = dest.with_suffix(dest.suffix + ".partial")
+            urllib.request.urlretrieve(url, tmp)
+            tmp.replace(dest)
     except Exception as e:
         msg = f"[error] {rel}: {e}"
         if required:

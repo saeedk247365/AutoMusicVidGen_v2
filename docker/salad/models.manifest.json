@@ -1,5 +1,5 @@
 {
-  "description": "Kids-hit ComfyUI models for AutoMusicVidGen (Wan 2.2 I2V + stills). Large files download at container start; character LoRAs + checkpoint + LightX2V LoRAs are baked into the image.",
+  "description": "Kids-hit ComfyUI models for AutoMusicVidGen. Large files download at container start (Salad 35GB image limit).",
   "models": [
     {
       "url": "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
@@ -37,10 +37,9 @@
       "required": true
     },
     {
-      "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors",
-      "path": "checkpoints/v1-5-pruned-emaonly.safetensors",
-      "required": false,
-      "note": "Fallback SD1.5 if realcartoon not baked; prefer bake realcartoon3d_v15"
+      "url": "https://github.com/saeedk247365/AutoMusicVidGen_v2/releases/download/salad-bake-v1/realcartoon3d_v15.safetensors",
+      "path": "checkpoints/realcartoon3d_v15.safetensors",
+      "required": true
     }
   ]
 }
