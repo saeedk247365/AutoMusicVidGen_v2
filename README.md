@@ -71,24 +71,28 @@ Weights land in ComfyUI `models/loras/` (and optionally `loras/` in this repo). 
 
 ### 3. Make a music video (`npm run mvid`)
 
-One command runs the full kids-hit chain (starts ComfyUI if needed → lyrics + ACE song + keyframes → Wan clips → **`final.mp4`**). No prompts.
+Opens an **Express + EJS** multi-tab studio in your browser (`http://127.0.0.1:3847/`). Starts ComfyUI if needed, then generates each stage and **waits for Approve** (lyrics → song → storyline/scenes/scripts → keyframes → clips → **final.mp4**).
 
 ```bash
 npm run mvid
 ```
 
-Options:
+- **Lyrics** tab is editable — edit before Approve  
+- **Auto-approve all** (toolbar checkbox) skips gates and runs end-to-end  
+- **Regenerate** re-runs the current stage  
 
 ```bash
 npm run mvid -- --count 1
 npm run mvid -- --theme "rainy day indoor march"
-npm run mvid -- --song batches/<date>/<slug>   # skip lyrics; animate + stitch only
+npm run mvid -- --song batches/<date>/<slug>   # resume existing song folder
 npm run mvid -- --classic                      # longer ~180s classic path
+npm run mvid -- --auto-approve                 # no pauses (watch in GUI)
+npm run mvid -- --port 3847
 ```
 
 Creates `batches/<YYYYMMDD>/<slug>/` with `lyrics.txt`, `<slug>.mp3`, `scenes/actions.json`, `keyframes/`, `clips/`, and **`final.mp4`**.
 
-**Manual stages** (same pipeline, step by step):
+**Headless / manual stages** (no GUI):
 
 ```bash
 npm run mvid:lyrics -- --count 1
@@ -109,9 +113,9 @@ characters/adam.json
         │
         ▼
   02_0 --kids-hit              ← lyrics → ACE mp3 → Qwen beats → plates → rembg → keyframes
-        │
+        │                         (GUI pauses after lyrics, song, plan, keyframes)
         ▼
-  02_1 --kids-hit              ← Wan I2V per keyframe (match-action / story energy)
+  02_1 --kids-hit              ← Wan I2V per keyframe
         │
         ▼
   02_2 --loop-fill             ← timed concat + audio → final.mp4
@@ -135,14 +139,14 @@ Then: `npm run mvid -- --song batches/<date>/<slug>` (or animate + stitch manual
 
 ### 4. Classic path (longer songs)
 
-~180s, fewer beats, freeze-pad stitch. Full auto:
+~180s, fewer beats, freeze-pad stitch:
 
 ```bash
 npm run mvid -- --classic
 # or: npm run mvid:classic
 ```
 
-Stages: `mvid:classic:lyrics` · `mvid:classic:animate` · `mvid:classic:stitch`.
+Add `--auto-approve` to skip GUI gates. Stages: `mvid:classic:lyrics` · `mvid:classic:animate` · `mvid:classic:stitch`.
 ---
 
 ### Output layout
@@ -282,8 +286,15 @@ Song keyframes use a **composite pipeline**: solo studio character plates → re
 
 Shorter home songs (~75s), timed dense beats, energetic Wan motion, stitch loop-fill (no freeze pad). Continuity: [docs/CONTINUITY.md](docs/CONTINUITY.md). Dry-run: `npm run mvid:validate` (add `-- --repair` to exercise bridges). Golden: `batches/_templates/continuity-golden-rainy-march.json`.
 
+Interactive GUI (default):
+
 ```bash
 npm run mvid
+```
+
+Headless stages:
+
+```bash
 npm run mvid:lyrics
 npm run mvid:animate -- --song batches/<date>/<slug> --force
 npm run mvid:stitch -- --song batches/<date>/<slug> --force
@@ -292,7 +303,7 @@ npm run mvid:stitch -- --song batches/<date>/<slug> --force
 ### Classic path
 
 ```bash
-npm run mvid:classic
+npm run mvid -- --classic
 npm run mvid:classic:lyrics
 npm run mvid:classic:animate
 npm run mvid:classic:stitch

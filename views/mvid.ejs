@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mvid — music video studio</title>
+  <link rel="stylesheet" href="/static/mvid.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">mvid</div>
+    <div class="status" id="statusMsg"><%= initial.statusMessage || "Starting…" %></div>
+    <div class="stage-pill" id="stagePill"><%= initial.stage || "idle" %></div>
+    <label class="auto-toggle" title="Skip all approval gates">
+      <input type="checkbox" id="autoApprove" <%= initial.autoApprove ? "checked" : "" %> />
+      Auto-approve all
+    </label>
+    <div class="actions">
+      <button type="button" id="btnReject" class="btn danger" disabled>Regenerate</button>
+      <button type="button" id="btnApprove" class="btn primary" disabled>Approve &amp; continue</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabNav">
+    <button type="button" data-tab="lyrics" class="active">Lyrics</button>
+    <button type="button" data-tab="song">Song</button>
+    <button type="button" data-tab="storyline">Storyline</button>
+    <button type="button" data-tab="scenes">Scenes</button>
+    <button type="button" data-tab="scripts">Scripts</button>
+    <button type="button" data-tab="keyframes">Keyframes</button>
+    <button type="button" data-tab="clips">Clips</button>
+    <button type="button" data-tab="final">Final</button>
+  </nav>
+
+  <main class="panes">
+    <section class="pane active" id="pane-lyrics">
+      <p class="hint">Edit lyrics before approving. TITLE / OBJECTIVE lines are kept.</p>
+      <textarea id="lyricsText" spellcheck="true" placeholder="Lyrics will appear here…"></textarea>
+    </section>
+
+    <section class="pane" id="pane-song">
+      <p class="hint">Listen to the generated song, then approve or regenerate.</p>
+      <div id="songPlayer" class="empty">No audio yet</div>
+    </section>
+
+    <section class="pane" id="pane-storyline">
+      <p class="hint">Objective and beat arc. You can edit raw JSON before approving the plan.</p>
+      <div id="storylineView" class="empty">No storyline yet</div>
+      <details class="raw-json">
+        <summary>Edit raw actions.json</summary>
+        <textarea id="planRaw" spellcheck="false"></textarea>
+      </details>
+    </section>
+
+    <section class="pane" id="pane-scenes">
+      <p class="hint">Empty room plates used by each beat.</p>
+      <div id="scenesGrid" class="grid empty">No scenes yet</div>
+    </section>
+
+    <section class="pane" id="pane-scripts">
+      <p class="hint">Per-beat lyric hints and action notes (feeds Wan motion).</p>
+      <div id="scriptsView" class="empty">No scripts yet</div>
+    </section>
+
+    <section class="pane" id="pane-keyframes">
+      <p class="hint">Composited stills — approve to animate with Wan.</p>
+      <div id="keyframesGrid" class="grid empty">No keyframes yet</div>
+    </section>
+
+    <section class="pane" id="pane-clips">
+      <p class="hint">Wan clips — approve to stitch final.mp4.</p>
+      <div id="clipsGrid" class="grid empty">No clips yet</div>
+    </section>
+
+    <section class="pane" id="pane-final">
+      <p class="hint">Final music video.</p>
+      <div id="finalPlayer" class="empty">No final yet</div>
+    </section>
+  </main>
+
+  <footer class="log" id="log"></footer>
+
+  <script>
+    window.__MVID_INITIAL__ = <%- JSON.stringify(initial) %>;
+  </script>
+  <script src="/static/mvid.js"></script>
+</body>
+</html>

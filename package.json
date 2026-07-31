@@ -23,6 +23,8 @@
     "train:adam": "node scripts/train-lora.js --train-config train-config-adam.json --character characters/adam.json"
   },
   "dependencies": {
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
     "sharp": "^0.35.3"
   },
   "allowScripts": {

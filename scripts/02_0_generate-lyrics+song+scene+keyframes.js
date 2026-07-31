@@ -1619,6 +1619,10 @@ async function main() {
   const force = has("--force");
   const kidsHit = has("--kids-hit");
   const songArg = flag("--song", null);
+  /** Interactive mvid gates: lyrics | song | plan | keyframes */
+  const stopAfter = flag("--stop-after", null);
+  /** Resume a song folder at: song | plan | keyframes */
+  const resumeFrom = flag("--resume-from", null);
 
   const duration = has("--duration")
     ? Number(flag("--duration", String(SETTINGS.duration)))
@@ -1632,6 +1636,185 @@ async function main() {
 
   if (kidsHit) {
     console.log(`Kids-hit mode ON (duration=${duration}s, home themes, timed beats)`);
+  }
+
+  // ── Interactive resume: song / plan / keyframes for an existing songDir ──
+  if (resumeFrom) {
+    if (!songArg) {
+      throw new Error("--resume-from requires --song batches/<date>/<slug>");
+    }
+    const songDir = resolve(
+      songArg.match(/^[A-Za-z]:[\\/]/) || songArg.startsWith("/")
+        ? songArg
+        : join(ROOT, songArg),
+    );
+    if (!existsSync(songDir)) throw new Error(`Song folder not found: ${songDir}`);
+    const sessionPath = join(songDir, "mvid-session.json");
+    const session = existsSync(sessionPath)
+      ? JSON.parse(stripBom(await readFile(sessionPath, "utf8")))
+      : {};
+    const lyricsPath = join(songDir, "lyrics.txt");
+    if (!existsSync(lyricsPath)) throw new Error(`Missing ${lyricsPath}`);
+    const lyricsRaw = stripBom(await readFile(lyricsPath, "utf8"));
+    const titleMatch = /^TITLE:\s*(.+)$/im.exec(lyricsRaw);
+    const title =
+      titleMatch?.[1]?.trim() ||
+      session.title ||
+      songDir.split(/[/\\]/).pop()?.replace(/-/g, " ") ||
+      "Song";
+    const lyricsBody =
+      lyricsRaw.replace(/^TITLE:.*$/im, "").replace(/^OBJECTIVE:.*$/im, "").trim() ||
+      lyricsRaw;
+    const objective =
+      (/^OBJECTIVE:\s*(.+)$/im.exec(lyricsRaw)?.[1] || "").trim() ||
+      session.objective ||
+      "";
+    const theme =
+      flag("--theme", null) ||
+      session.theme ||
+      (kidsHit ? inferKidsHitThemeFromLyrics(lyricsBody) : "family");
+    const style =
+      session.style ||
+      (kidsHit ? kidsHitStyleForMood(kidsHitMood(theme), KIDS_HIT_STYLES) : pick(STYLES));
+    const slug = session.slug || songDir.split(/[/\\]/).pop();
+    const locations = scenePack.scenes.map((s) => s.id);
+    const bpmLocal = Number(flag("--bpm", String(session.bpm || SETTINGS.bpm)));
+    const stepsLocal = Number(flag("--steps", String(session.steps || SETTINGS.steps)));
+    const durationLocal = has("--duration")
+      ? duration
+      : Number(session.durationSec || duration);
+
+    console.log(`02_0 resume-from=${resumeFrom} stop-after=${stopAfter || "(end)"}`);
+    console.log(`song: ${songDir}`);
+
+    if (resumeFrom === "song") {
+      if (skipAudio) {
+        console.log("Skipping audio (--skip-audio)");
+      } else {
+        const dest = join(songDir, `${slug}.mp3`);
+        const captionTemplate = kidsHit ? KIDS_HIT_CAPTION_TEMPLATE : CAPTION_TEMPLATE;
+        const caption = captionTemplate
+          .replaceAll("{{TITLE}}", title)
+          .replaceAll("{{STYLE}}", typeof style === "string" ? style : String(style));
+        const seed =
+          has("--seed")
+            ? Number(flag("--seed", "0"))
+            : session.seed != null
+              ? Number(session.seed)
+              : randomSeed();
+        session.seed = seed;
+        await writeFile(sessionPath, JSON.stringify({ ...session, title, theme, style, slug, kidsHit: !!kidsHit, objective, durationSec: durationLocal, bpm: bpmLocal, steps: stepsLocal, seed }, null, 2), "utf8");
+        const pyArgs = [
+          ACE_SCRIPT,
+          "--out", dest,
+          "--caption", caption,
+          "--lyrics", lyricsPath,
+          "--duration", String(durationLocal),
+          "--bpm", String(bpmLocal),
+          "--seed", String(seed),
+          "--steps", String(stepsLocal),
+          "--lm", flag("--lm", SETTINGS.lm),
+          "--backend", flag("--backend", SETTINGS.backend),
+        ];
+        if (keyscale) pyArgs.push("--keyscale", keyscale);
+        if (has("--no-thinking")) pyArgs.push("--no-thinking");
+        console.log(`ACE generating… seed=${seed}`);
+        await freeComfyVram(comfyUrl);
+        await runPython(pyArgs, 1800000);
+        await assertHealthyAudio(dest);
+        console.log(`Song ready: ${dest}`);
+      }
+      if (stopAfter === "song") {
+        console.log("Stopped after song (--stop-after song)");
+        return;
+      }
+      // fall through to plan if not stopping
+    }
+
+    if (resumeFrom === "song" || resumeFrom === "plan") {
+      if (resumeFrom === "plan" || stopAfter !== "song") {
+        console.log(kidsHit ? "Qwen timed kids-hit beat plan…" : "Qwen frozen beat plan…");
+        const plan = await qwenGenerateBeats(qwenModel, SETTINGS.qwenTemperature, {
+          title,
+          theme,
+          lyrics: lyricsBody,
+          locations,
+          kidsHit,
+          durationSec: durationLocal,
+          objective: kidsHit ? objective || objectiveForTheme(theme) : "",
+        });
+        plan.theme = theme;
+        plan.mood = kidsHit ? kidsHitMood(theme) : undefined;
+        if (kidsHit) {
+          plan.objective = plan.objective || objective || objectiveForTheme(theme);
+          await writeFile(
+            join(songDir, "kids-hit-meta.json"),
+            JSON.stringify(
+              {
+                theme,
+                mood: plan.mood,
+                style,
+                movement: session.movement,
+                objective: plan.objective,
+                durationSec: durationLocal,
+                kidsHit: true,
+                title,
+              },
+              null,
+              2,
+            ),
+            "utf8",
+          );
+        }
+        await mkdir(join(songDir, "scenes"), { recursive: true });
+        await ensureScenes(comfyUrl, characterRoot, scenePack, sharedScenesDir, { force: false });
+        for (const sc of scenePack.scenes) {
+          const src = join(sharedScenesDir, `${sc.id}.png`);
+          const dst = join(songDir, "scenes", `${sc.id}.png`);
+          if (existsSync(src) && (!existsSync(dst) || force)) {
+            await copyFile(src, dst);
+          }
+        }
+        await writeFile(
+          join(songDir, "scenes", "actions.json"),
+          JSON.stringify(plan, null, 2),
+          "utf8",
+        );
+        console.log(`  ${plan.beats.length} beats written to scenes/actions.json`);
+        if (stopAfter === "plan") {
+          console.log("Stopped after plan (--stop-after plan)");
+          return;
+        }
+      }
+    }
+
+    if (
+      resumeFrom === "keyframes" ||
+      (resumeFrom === "song" && stopAfter !== "song" && stopAfter !== "plan") ||
+      (resumeFrom === "plan" && stopAfter !== "plan")
+    ) {
+      const actionsPath = join(songDir, "scenes", "actions.json");
+      if (!existsSync(actionsPath)) {
+        throw new Error(`Missing ${actionsPath} — run plan stage first`);
+      }
+      const plan = JSON.parse(stripBom(await readFile(actionsPath, "utf8")));
+      await freeComfyVram(comfyUrl);
+      await ensureScenes(comfyUrl, characterRoot, scenePack, sharedScenesDir, {
+        force: false,
+      });
+      await generateSongKeyframes(
+        comfyUrl,
+        characterRoot,
+        cast,
+        scenePack,
+        songDir,
+        plan,
+        sharedScenesDir,
+        { force: true, kidsHit: kidsHit || plan?.kidsHit === true },
+      );
+      console.log(`Keyframes ready: ${songDir}`);
+    }
+    return;
   }
 
   // Regen keyframes for an existing song (keep mp3; normalize or replan actions.json)
@@ -1807,7 +1990,7 @@ async function main() {
 
   for (let i = 1; i <= count; i++) {
     console.log(`\n══ Song ${i}/${count}`);
-    const theme = batchThemes[i - 1];
+    const theme = flag("--theme", null) || batchThemes[i - 1];
     const mood = kidsHit ? kidsHitMood(theme) : "energetic";
     const style = kidsHit
       ? kidsHitStyleForMood(mood, KIDS_HIT_STYLES)
@@ -1862,6 +2045,45 @@ async function main() {
       entry.objective = objective || undefined;
       entry.songDir = songDir;
       console.log(`Title: ${title}`);
+
+      // Persist session for interactive mvid resume stages
+      await writeFile(
+        join(songDir, "mvid-session.json"),
+        JSON.stringify(
+          {
+            title,
+            theme,
+            style,
+            eduFocus,
+            movement,
+            mood,
+            objective: objective || undefined,
+            kidsHit: !!kidsHit,
+            slug,
+            songDir,
+            durationSec: duration,
+            bpm,
+            steps,
+            batchDir,
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      if (stopAfter === "lyrics") {
+        entry.ok = true;
+        entry.stage = "lyrics";
+        manifest.songs.push(entry);
+        await writeFile(
+          join(batchDir, `manifest_${runId}.json`),
+          JSON.stringify(manifest, null, 2),
+          "utf8",
+        );
+        console.log(`Stopped after lyrics (--stop-after lyrics): ${songDir}`);
+        continue;
+      }
     } catch (err) {
       entry.error = String(err.message || err).slice(0, 500);
       entry.stage = "lyrics";
@@ -1881,6 +2103,17 @@ async function main() {
       const seed =
         baseSeed == null ? randomSeed() : (baseSeed + i - 1) >>> 0;
       entry.seed = seed;
+      // Update session with seed
+      try {
+        const sp = join(songDir, "mvid-session.json");
+        const sess = existsSync(sp)
+          ? JSON.parse(stripBom(await readFile(sp, "utf8")))
+          : {};
+        sess.seed = seed;
+        await writeFile(sp, JSON.stringify(sess, null, 2), "utf8");
+      } catch {
+        /* ignore */
+      }
       const pyArgs = [
         ACE_SCRIPT,
         "--out",
@@ -1921,25 +2154,45 @@ async function main() {
         console.error(`Song failed: ${entry.error}`);
         continue;
       }
+
+      if (stopAfter === "song") {
+        entry.ok = true;
+        entry.stage = "song";
+        manifest.songs.push(entry);
+        await writeFile(
+          join(batchDir, `manifest_${runId}.json`),
+          JSON.stringify(manifest, null, 2),
+          "utf8",
+        );
+        console.log(`Stopped after song (--stop-after song): ${songDir}`);
+        continue;
+      }
     }
 
     // Scene plan + keyframes
     try {
       console.log(kidsHit ? "Qwen timed kids-hit beat plan…" : "Qwen frozen beat plan…");
+      // Re-read lyrics from disk so interactive edits apply
+      const lyricsRawDisk = stripBom(await readFile(join(songDir, "lyrics.txt"), "utf8"));
+      const lyricsForPlan =
+        lyricsRawDisk.replace(/^TITLE:.*$/im, "").replace(/^OBJECTIVE:.*$/im, "").trim() ||
+        lyrics;
+      const objectiveDisk =
+        (/^OBJECTIVE:\s*(.+)$/im.exec(lyricsRawDisk)?.[1] || "").trim() || objective;
       const plan = await qwenGenerateBeats(qwenModel, SETTINGS.qwenTemperature, {
         title,
         theme,
-        lyrics,
+        lyrics: lyricsForPlan,
         locations,
         kidsHit,
         durationSec: duration,
-        objective: kidsHit ? objective || objectiveForTheme(theme) : "",
+        objective: kidsHit ? objectiveDisk || objectiveForTheme(theme) : "",
       });
       // Ensure theme travels into actions for motion mood + repair
       plan.theme = theme;
       plan.mood = kidsHit ? kidsHitMood(theme) : undefined;
       if (kidsHit) {
-        plan.objective = plan.objective || objective || objectiveForTheme(theme);
+        plan.objective = plan.objective || objectiveDisk || objectiveForTheme(theme);
         await writeFile(
           join(songDir, "kids-hit-meta.json"),
           JSON.stringify(
@@ -1960,6 +2213,31 @@ async function main() {
         );
       }
       entry.beats = plan.beats.length;
+
+      if (stopAfter === "plan") {
+        await mkdir(join(songDir, "scenes"), { recursive: true });
+        await writeFile(
+          join(songDir, "scenes", "actions.json"),
+          JSON.stringify(plan, null, 2),
+          "utf8",
+        );
+        for (const sc of scenePack.scenes) {
+          const src = join(sharedScenesDir, `${sc.id}.png`);
+          const dst = join(songDir, "scenes", `${sc.id}.png`);
+          if (existsSync(src)) await copyFile(src, dst);
+        }
+        entry.ok = true;
+        entry.stage = "plan";
+        manifest.songs.push(entry);
+        await writeFile(
+          join(batchDir, `manifest_${runId}.json`),
+          JSON.stringify(manifest, null, 2),
+          "utf8",
+        );
+        console.log(`Stopped after plan (--stop-after plan): ${songDir}`);
+        continue;
+      }
+
       console.log(`  ${plan.beats.length} beats — generating keyframe stills…`);
       await freeComfyVram(comfyUrl);
       await generateSongKeyframes(
