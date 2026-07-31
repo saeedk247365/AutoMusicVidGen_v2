@@ -39,8 +39,16 @@ async function loadConfig() {
   const trigger = character.trigger || "tomchr";
   const name = character.name || "Tom";
 
+  const comfyRootRaw = train.comfyRoot || "ComfyUI";
+  const comfyRoot = resolve(
+    ROOT,
+    // Allow absolute paths; otherwise resolve relative to repo root.
+    comfyRootRaw,
+  );
+
   return {
     ...train,
+    comfyRoot,
     comfyUrl: train.comfyUrl || character.comfyUrl || "http://127.0.0.1:8188",
     checkpoint: train.checkpoint || character.checkpoint || "realcartoon3d_v15.safetensors",
     loraName: train.loraName || `${trigger}_character_v1`,

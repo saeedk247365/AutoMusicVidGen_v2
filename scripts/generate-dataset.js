@@ -88,8 +88,7 @@ const IDENTITY_RETRIES = Math.max(1, Number(flag("--identity-retries", "3")));
 const BOOTSTRAP_FROM_TEXT = has("--bootstrap-from-text");
 const REF_FLAG = flag("--ref", null);
 const COMFY_ROOT =
-  flag("--comfy-root", null) ||
-  "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI";
+  flag("--comfy-root", null) || join(ROOT, "ComfyUI");
 const COMFY_PYTHON = join(COMFY_ROOT, "venv", "Scripts", "python.exe");
 const IDENTITY_SCRIPT = join(ROOT, "scripts", "identity-similarity.py");
 

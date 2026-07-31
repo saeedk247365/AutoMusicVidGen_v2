@@ -14,8 +14,7 @@ import { randomUUID } from "crypto";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CHAR_PATH = join(ROOT, "characters", "tomchr.json");
 const OUT_DIR = join(ROOT, "videos");
-const COMFY_ROOT =
-  "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI";
+const COMFY_ROOT = join(ROOT, "ComfyUI");
 
 const argv = process.argv.slice(2);
 function flag(name, fallback = null) {

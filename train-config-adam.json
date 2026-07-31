@@ -1,6 +1,6 @@
 {
   "comfyUrl": "http://127.0.0.1:8188",
-  "comfyRoot": "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI",
+  "comfyRoot": "ComfyUI",
   "datasetDir": "dataset/adam/images",
   "checkpoint": "realcartoon3d_v15.safetensors",
 

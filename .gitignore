@@ -9,3 +9,5 @@ videos/
 dataset/**/poses/
 dataset/**/master_approved.json
 dataset/**/master_seed.json
+# Local ComfyUI install (~100GB models + venv) — not for git
+ComfyUI/

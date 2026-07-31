@@ -14,8 +14,7 @@ import { randomUUID } from "crypto";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CHAR_PATH = join(ROOT, "characters", "tomchr.json");
 const OUT_DIR = join(ROOT, "videos");
-const COMFY_ROOT =
-  "C:\\Users\\Saeed Khan\\AppData\\Local\\ProdesecStudio\\ComfyUI";
+const COMFY_ROOT = join(ROOT, "ComfyUI");
 
 const STYLE =
   "flat 2D anime cartoon illustration, clean cel shading, simple bold lineart, cinematic composition, detailed background environment";
