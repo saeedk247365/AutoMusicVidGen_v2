@@ -1,0 +1,50 @@
+name: Make GHCR package public
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set amvg-comfyui package visibility to public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          OWNER="${{ github.repository_owner }}"
+          PKG="amvg-comfyui"
+          echo "Owner=$OWNER package=$PKG"
+
+          # List to confirm package exists
+          gh api "/users/${OWNER}/packages/container/${PKG}" \
+            --jq '{name,visibility,html_url}' || true
+
+          # Set visibility public (user-owned package)
+          gh api --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            "/users/${OWNER}/packages/container/${PKG}/visibility" \
+            -f visibility=public
+
+          echo "Updated. Verifying…"
+          gh api "/users/${OWNER}/packages/container/${PKG}" \
+            --jq '{name,visibility,html_url}'
+
+          # Anonymous pull check
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+            "https://ghcr.io/v2/${OWNER}/${PKG}/manifests/kids-hit-wan22" || true)
+          echo "Anonymous manifest HTTP=$CODE (200/401 expected; 401 may still need token endpoint)"
+          # Token-less pull via public token grant
+          TOKEN=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER}/${PKG}:pull" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" || true)
+          if [ -n "$TOKEN" ]; then
+            CODE2=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+              "https://ghcr.io/v2/${OWNER}/${PKG}/manifests/kids-hit-wan22")
+            echo "Public-token pull HTTP=$CODE2"
+          fi
