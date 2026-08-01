@@ -3,7 +3,9 @@
 # - Large Wan weights download on first start (Salad 35GB compressed image limit)
 # - Bakes realcartoon + character LoRAs into the image
 
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+# RTX 50-series (sm_120 / Blackwell) needs CUDA 12.8 + PyTorch >= 2.7
+# https://docs.salad.com/container-engine/tutorials/machine-learning/pytorch-rtx5090
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
