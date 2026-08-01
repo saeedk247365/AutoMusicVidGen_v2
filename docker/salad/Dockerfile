@@ -5,7 +5,7 @@
 
 # RTX 50-series (sm_120 / Blackwell) needs CUDA 12.8 + PyTorch >= 2.7
 # https://docs.salad.com/container-engine/tutorials/machine-learning/pytorch-rtx5090
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+FROM pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -31,14 +31,22 @@ RUN git clone --depth 1 --branch ${COMFY_REF} https://github.com/comfyanonymous/
 
 WORKDIR ${COMFY_DIR}
 
-RUN pip install --no-cache-dir -r requirements.txt \
+# ComfyUI requirements.txt often pulls torch/cu124 and wipes sm_120 support.
+# Install everything else, then force CUDA 12.8 wheels back on.
+RUN grep -viE '^(torch|torchvision|torchaudio)([<=>![:space:]]|$)' requirements.txt \
+      > /tmp/comfy-req-no-torch.txt \
+    && pip install --no-cache-dir -r /tmp/comfy-req-no-torch.txt \
     && pip install --no-cache-dir \
       huggingface_hub \
       hf_transfer \
       requests \
       tqdm \
-      imageio-ffmpeg
-
+      imageio-ffmpeg \
+      opencv-python-headless \
+    && pip install --no-cache-dir --force-reinstall \
+      torch torchvision torchaudio \
+      --index-url https://download.pytorch.org/whl/cu128 \
+    && python -c "import torch; v=torch.__version__; a=torch.cuda.get_arch_list(); print('torch', v, 'archs', a); assert 'cu128' in v, v; assert any('120' in x for x in a), a"
 # Optional custom nodes used by some stills / control paths (safe no-ops if unused)
 RUN mkdir -p custom_nodes \
     && git clone --depth 1 https://github.com/cubiq/ComfyUI_IPAdapter_plus.git custom_nodes/ComfyUI_IPAdapter_plus || true \
