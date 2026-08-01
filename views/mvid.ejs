@@ -9,16 +9,51 @@
 <body>
   <header class="topbar">
     <div class="brand">mvid</div>
+    <div class="project-pill" id="projectPill" title="Active project (restored after restart)">Project: —</div>
     <div class="status" id="statusMsg"><%= initial.statusMessage || "Starting…" %></div>
     <div class="stage-pill" id="stagePill"><%= initial.stage || "idle" %></div>
-    <label class="auto-toggle" title="Use Salad Cloud GPU when SALAD_COMFY_URL is set">
+    <div class="resource-meters" id="resourceMeters" title="Local machine + Salad Cloud usage (updates every 2s)">
+      <div class="meter-group" data-scope="local">
+        <span class="meter-label">Local</span>
+        <span class="meter" data-key="cpu"><span class="meter-bar"></span><span class="meter-txt">CPU —</span></span>
+        <span class="meter" data-key="ram"><span class="meter-bar"></span><span class="meter-txt">RAM —</span></span>
+        <span class="meter" data-key="gpu"><span class="meter-bar"></span><span class="meter-txt">GPU —</span></span>
+      </div>
+      <div class="meter-group salad-meters" data-scope="salad">
+        <span class="meter-label">Salad</span>
+        <span class="meter" data-key="cpu"><span class="meter-bar"></span><span class="meter-txt">CPU —</span></span>
+        <span class="meter" data-key="ram"><span class="meter-bar"></span><span class="meter-txt">RAM —</span></span>
+        <span class="meter" data-key="gpu"><span class="meter-bar"></span><span class="meter-txt">GPU —</span></span>
+      </div>
+    </div>
+    <label class="auto-toggle" title="Local = all on PC. Salad = all on cloud. Split = prep/stills local, Wan clips on Salad (recommended).">
       GPU
       <select id="gpuBackend">
-        <option value="local" <%= (initial.gpu && initial.gpu.backend) !== "salad" ? "selected" : "" %>>Local</option>
-        <option value="salad" <%= (initial.gpu && initial.gpu.backend) === "salad" ? "selected" : "" %>>Salad Cloud</option>
+        <% const gpuB = (initial.gpu && initial.gpu.backend) || "local"; %>
+        <option value="local" <%= gpuB === "local" ? "selected" : "" %>>Local</option>
+        <option value="split" <%= gpuB === "split" ? "selected" : "" %>>Split (local + Salad Wan)</option>
+        <option value="salad" <%= gpuB === "salad" ? "selected" : "" %>>Salad Cloud</option>
+      </select>
+    </label>
+    <label class="auto-toggle" title="Final stills / Wan / stitch size. Preview = current 768×768. YouTube = 1920×1088 (16-aligned ~1080p) for production.">
+      Output
+      <select id="outputResolution">
+        <% const resList = (initial.outputResolutions && initial.outputResolutions.length) ? initial.outputResolutions : [{ id: "preview", label: "Preview 768×768" }, { id: "youtube", label: "YouTube 1920×1088" }]; %>
+        <% const curRes = initial.outputResolution || "preview"; %>
+        <% resList.forEach(function (p) { %>
+          <option value="<%= p.id %>" <%= curRes === p.id ? "selected" : "" %>><%= p.label %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label class="auto-toggle song-picker" title="Open a finished batch to review in the tabs">
+      Batch
+      <select id="batchPicker">
+        <option value="">— open batch —</option>
       </select>
     </label>
     <div class="run-controls">
+      <button type="button" id="btnContinue" class="btn tiny primary" title="Resume pipeline on the open project">Continue</button>
+      <button type="button" id="btnNewProject" class="btn tiny" title="Start a brand-new project">New</button>
       <button type="button" id="btnPause" class="btn" title="Pause generation (kills current worker, holds until Resume)">Pause</button>
       <button type="button" id="btnResume" class="btn" disabled title="Resume after pause">Resume</button>
       <button type="button" id="btnStop" class="btn danger" title="Hard-stop pipeline">Stop</button>
@@ -95,7 +130,7 @@
     </section>
 
     <section class="pane" id="pane-storyline">
-      <p class="hint">Objective and beat arc. You can edit raw JSON before approving the plan.</p>
+      <p class="hint">Beat timeline overview. Edit shots on the <strong>Scripts</strong> tab (plain-language cards). Advanced: raw JSON below.</p>
       <div id="storylineView" class="empty">No storyline yet</div>
       <details class="raw-json">
         <summary>Edit raw actions.json</summary>
@@ -109,12 +144,19 @@
     </section>
 
     <section class="pane" id="pane-scripts">
-      <p class="hint">Per-beat lyric hints and action notes (feeds Wan motion).</p>
+      <p class="hint">
+        Each card is one frozen shot. Edit the story, then <strong>Save scripts</strong> or
+        <strong>Remake still</strong> for that shot only (does not regenerate the whole video).
+      </p>
+      <div class="scripts-toolbar">
+        <button type="button" id="btnSaveScripts" class="btn primary">Save scripts</button>
+        <span class="meta" id="scriptsSaveStatus"></span>
+      </div>
       <div id="scriptsView" class="empty">No scripts yet</div>
     </section>
 
     <section class="pane" id="pane-keyframes">
-      <p class="hint">Composited stills — approve to animate with Wan.</p>
+      <p class="hint">Composited stills. Remake one shot after editing its script card. Approve to animate with Wan.</p>
       <div id="keyframesGrid" class="grid empty">No keyframes yet</div>
     </section>
 

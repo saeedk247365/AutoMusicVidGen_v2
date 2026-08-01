@@ -1,8 +1,15 @@
 import { mkdir, readFile, writeFile, copyFile, readdir, rm, unlink, rename } from "fs/promises";
 import { existsSync } from "fs";
-import { join, dirname, basename, extname, resolve } from "path";
+import { join, dirname, basename, resolve } from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
+import {
+  setGpuBackend,
+  resolveComfyUrl,
+  isSaladUrl,
+  comfyAuthHeaders,
+  getGpuBackend,
+} from "../lib/gpu-backend.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -17,6 +24,14 @@ const stepsOverride = (() => {
   const i = args.indexOf("--steps");
   return i >= 0 ? Number(args[i + 1]) : null;
 })();
+
+if (args.includes("--salad") || flag("--backend") === "salad") {
+  const sw = setGpuBackend("salad");
+  if (!sw.ok) {
+    console.error(sw.error);
+    process.exit(2);
+  }
+}
 
 const TRAIN_CONFIG_PATH = join(ROOT, flag("--train-config", "train-config.json"));
 const CHAR_CONFIG_PATH = join(ROOT, flag("--character", "characters/tomchr.json"));
@@ -40,34 +55,55 @@ async function loadConfig() {
   const name = character.name || "Tom";
 
   const comfyRootRaw = train.comfyRoot || "ComfyUI";
-  const comfyRoot = resolve(
-    ROOT,
-    // Allow absolute paths; otherwise resolve relative to repo root.
-    comfyRootRaw,
-  );
+  const comfyRoot = resolve(ROOT, comfyRootRaw);
+  // --salad sets GPU_BACKEND; do not trust train-config.comfyUrl (usually localhost).
+  // resolveComfyUrl(override) returns the override as-is, so localhost would disable remote.
+  const salad = getGpuBackend() === "salad";
+
+  // Salad 16GB+ can full-load; offloading+no-bypass hangs TrainLoraNode (CPU thrash, ~1–2GB VRAM forever).
+  // If offloading is kept on, bypass_mode MUST be true (Comfy only logs "forcing bypass" — it does not set it).
+  let offloading = train.offloading ?? false;
+  let bypassMode = train.bypassMode ?? train.bypass_mode ?? false;
+  if (salad) {
+    offloading = false;
+    bypassMode = false;
+  } else if (offloading && !bypassMode) {
+    bypassMode = true;
+  }
 
   return {
     ...train,
     comfyRoot,
-    comfyUrl: train.comfyUrl || character.comfyUrl || "http://127.0.0.1:8188",
+    comfyUrl: salad
+      ? resolveComfyUrl()
+      : train.comfyUrl || character.comfyUrl || resolveComfyUrl(),
+    remote: salad,
     checkpoint: train.checkpoint || character.checkpoint || "realcartoon3d_v15.safetensors",
     loraName: train.loraName || `${trigger}_character_v1`,
     datasetFolder: train.datasetFolder || `character_lora_${trigger}`,
     trigger,
     name,
     steps: stepsOverride ?? train.steps ?? 200,
+    offloading,
+    bypassMode,
   };
 }
 
 async function comfy(url, path, opts = {}) {
-  const res = await fetch(`${url}${path}`, opts);
+  const timeoutMs = opts.timeoutMs ?? (isSaladUrl(url) ? 120000 : 60000);
+  const { timeoutMs: _t, headers: extraHeaders, ...fetchOpts } = opts;
+  const res = await fetch(`${url}${path}`, {
+    ...fetchOpts,
+    headers: comfyAuthHeaders(url, extraHeaders || {}),
+    signal: fetchOpts.signal || AbortSignal.timeout(timeoutMs),
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`ComfyUI ${path} → ${res.status}: ${text.slice(0, 800)}`);
   }
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json();
-  return res.arrayBuffer();
+  return Buffer.from(await res.arrayBuffer());
 }
 
 function sleep(ms) {
@@ -85,6 +121,13 @@ function argvFlag(argv, name) {
  * (e.g. ProdesecStudio AppData). Prefer the running server's paths.
  */
 async function resolveLiveComfyDirs(cfg) {
+  if (cfg.remote) {
+    return {
+      inputDir: null,
+      outputDir: null,
+      modelsDir: null,
+    };
+  }
   const stats = await comfy(cfg.comfyUrl, "/system_stats");
   const argv = stats?.system?.argv || [];
   const inputDir = argvFlag(argv, "--input-directory");
@@ -119,7 +162,7 @@ async function listDatasetImages(datasetDir) {
     const imgPath = join(datasetDir, img);
     const txtPath = join(datasetDir, txtName);
     if (!existsSync(txtPath)) {
-      console.warn(`  warn: missing caption for ${img} — using empty caption`);
+      console.warn(`  warn: missing caption for ${img} — using trigger caption`);
     }
     pairs.push({
       img,
@@ -131,11 +174,73 @@ async function listDatasetImages(datasetDir) {
   return pairs;
 }
 
+async function uploadInputFile(cfg, filename, buffer, mime) {
+  const form = new FormData();
+  form.append("image", new Blob([buffer], { type: mime }), filename);
+  form.append("overwrite", "true");
+  form.append("type", "input");
+  form.append("subfolder", cfg.datasetFolder);
+  const res = await fetch(`${cfg.comfyUrl}/upload/image`, {
+    method: "POST",
+    headers: comfyAuthHeaders(cfg.comfyUrl),
+    body: form,
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!res.ok) {
+    throw new Error(`Upload ${filename} failed: ${(await res.text()).slice(0, 400)}`);
+  }
+  return res.json();
+}
+
+/**
+ * Sync local dataset → Salad ComfyUI input/<datasetFolder> via /upload/image.
+ */
+async function syncDatasetRemote(cfg) {
+  const datasetDir = resolve(ROOT, cfg.datasetDir);
+  if (!existsSync(datasetDir)) {
+    throw new Error(`Dataset not found: ${datasetDir}\nRun: npm run generate`);
+  }
+  const pairs = await listDatasetImages(datasetDir);
+  if (pairs.length === 0) {
+    throw new Error(`No images in ${datasetDir}`);
+  }
+
+  // Salad input dirs can't be wiped via API — use a fresh subfolder each run
+  // so leftover probe/junk files (tiny PNGs) don't break MakeTrainingDataset.
+  cfg.datasetFolder = `${cfg.datasetFolder}_${Date.now()}`;
+
+  console.log(`Uploading ${pairs.length} pairs → Salad input/${cfg.datasetFolder}`);
+  let n = 0;
+  for (const p of pairs) {
+    const imgBuf = await readFile(p.imgPath);
+    const mime = /\.png$/i.test(p.img)
+      ? "image/png"
+      : /\.webp$/i.test(p.img)
+        ? "image/webp"
+        : "image/jpeg";
+    await uploadInputFile(cfg, p.img, imgBuf, mime);
+    const caption = p.txtPath
+      ? await readFile(p.txtPath, "utf8")
+      : cfg.trigger || "";
+    await uploadInputFile(
+      cfg,
+      p.txtName,
+      Buffer.from(caption, "utf8"),
+      "text/plain",
+    );
+    n += 1;
+    if (n % 5 === 0 || n === pairs.length) {
+      console.log(`  uploaded ${n}/${pairs.length}`);
+    }
+  }
+  return { destDir: `input/${cfg.datasetFolder}`, count: pairs.length };
+}
+
 /**
  * Sync local dataset/images → <live ComfyUI input>/<folder>
  * Clears previous png/txt in that folder first (keeps other files).
  */
-async function syncDataset(cfg) {
+async function syncDatasetLocal(cfg) {
   const datasetDir = resolve(ROOT, cfg.datasetDir);
   if (!existsSync(datasetDir)) {
     throw new Error(`Dataset not found: ${datasetDir}\nRun: npm run generate`);
@@ -150,7 +255,6 @@ async function syncDataset(cfg) {
   const destDir = join(inputRoot, cfg.datasetFolder);
   await mkdir(destDir, { recursive: true });
 
-  // Clear old image/caption pairs in destination
   const existing = await readdir(destDir);
   for (const f of existing) {
     if (/\.(png|jpg|jpeg|webp|txt)$/i.test(f)) {
@@ -180,19 +284,12 @@ async function listTrainFolders(cfg) {
   );
 }
 
-/**
- * Ensure datasetFolder is accepted by LoadImageTextDataSetFromFolder.
- * New folders are usually visible immediately once synced to the live input dir;
- * if validation still caches the old list, fall back to a known folder name
- * (re-sync images there for this run only).
- */
 async function ensureFolderVisible(cfg) {
   let opts = await listTrainFolders(cfg);
   if (opts.includes(cfg.datasetFolder)) return opts;
 
-  // Schema may be cached from before the folder existed — brief retry.
-  for (let i = 0; i < 3; i++) {
-    await sleep(800);
+  for (let i = 0; i < 8; i++) {
+    await sleep(1000);
     opts = await listTrainFolders(cfg);
     if (opts.includes(cfg.datasetFolder)) return opts;
   }
@@ -200,15 +297,16 @@ async function ensureFolderVisible(cfg) {
   console.warn(
     `\nFolder "${cfg.datasetFolder}" not in ComfyUI's folder combo yet.`,
   );
-  console.warn(`Synced under: ${join(cfg.inputDir, cfg.datasetFolder)}`);
   throw new Error(
     `ComfyUI has not refreshed its input-folder list.\n` +
-      `Restart ComfyUI (the process on ${cfg.comfyUrl}), then re-run: npm run train:sasha\n` +
-      `Known folders right now: ${opts.slice(0, 8).join(", ")}`,
+      `Known folders: ${opts.slice(0, 12).join(", ")}`,
   );
 }
 
 function buildTrainWorkflow(cfg) {
+  const offloading = !!cfg.offloading;
+  // Comfy TrainLoraNode with offloading=true + bypass_mode=false deadlocks / crawls on CPU.
+  const bypassMode = !!(cfg.bypassMode || offloading);
   return {
     "4": {
       class_type: "CheckpointLoaderSimple",
@@ -247,10 +345,10 @@ function buildTrainWorkflow(cfg) {
         algorithm: cfg.algorithm,
         gradient_checkpointing: cfg.gradientCheckpointing,
         checkpoint_depth: cfg.checkpointDepth,
-        offloading: cfg.offloading,
+        offloading,
         existing_lora: cfg.existingLora || "[None]",
         bucket_mode: false,
-        bypass_mode: false,
+        bypass_mode: bypassMode,
       },
     },
     "23": {
@@ -271,12 +369,14 @@ function buildTrainWorkflow(cfg) {
   };
 }
 
-async function queueAndWait(url, workflow) {
+async function queueAndWait(url, workflow, { maxWaitMs = null } = {}) {
   const clientId = randomUUID();
   const queued = await comfy(url, "/prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt: workflow, client_id: clientId }),
+    // Native Comfy returns prompt_id immediately; keep under Salad gateway limit.
+    timeoutMs: isSaladUrl(url) ? 95_000 : 60_000,
   });
 
   if (queued.node_errors && Object.keys(queued.node_errors).length) {
@@ -284,20 +384,47 @@ async function queueAndWait(url, workflow) {
   }
 
   const promptId = queued.prompt_id;
+  if (!promptId) {
+    throw new Error(
+      `Unexpected /prompt response: ${JSON.stringify(queued).slice(0, 500)}`,
+    );
+  }
   console.log(`Queued prompt_id=${promptId}`);
-  console.log("Training… (this can take several minutes)");
+  console.log("Training… (this can take a while on Salad)");
+
+  // Default caps: Salad 40m, local 90m — never wait forever on a wedged TrainLoraNode.
+  const limitMs =
+    maxWaitMs ??
+    (isSaladUrl(url) ? 40 * 60_000 : 90 * 60_000);
 
   let lastMsg = "";
+  const started = Date.now();
   for (;;) {
-    await sleep(2000);
+    if (Date.now() - started > limitMs) {
+      try {
+        await comfy(url, "/interrupt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+          timeoutMs: 15_000,
+        });
+      } catch {
+        /* Salad may already be hung */
+      }
+      throw new Error(
+        `Training timed out after ${Math.round(limitMs / 60000)}m (prompt ${promptId}). ` +
+          `Often caused by offloading=true without bypass_mode. Restart Comfy/Salad if the server is unresponsive.`,
+      );
+    }
+    await sleep(isSaladUrl(url) ? 4000 : 2000);
     const hist = await comfy(url, `/history/${promptId}`);
     const entry = hist[promptId];
     if (!entry) {
-      // also peek queue
       const q = await comfy(url, "/queue");
       const running = q.queue_running?.length || 0;
       const pending = q.queue_pending?.length || 0;
-      const msg = `waiting (running=${running}, pending=${pending})`;
+      const mins = ((Date.now() - started) / 60000).toFixed(1);
+      const msg = `waiting ${mins}m (running=${running}, pending=${pending})`;
       if (msg !== lastMsg) {
         console.log(`  ${msg}`);
         lastMsg = msg;
@@ -308,7 +435,7 @@ async function queueAndWait(url, workflow) {
     const status = entry.status?.status_str;
     if (status === "error") {
       const msgs = entry.status?.messages || [];
-      throw new Error(`Training failed: ${JSON.stringify(msgs).slice(0, 1200)}`);
+      throw new Error(`Training failed: ${JSON.stringify(msgs).slice(0, 1500)}`);
     }
 
     if (entry.outputs || status === "success") {
@@ -323,7 +450,7 @@ async function findNewestLora(outputLorasDir, loraName) {
     .filter(
       (f) =>
         f.toLowerCase().endsWith(".safetensors") &&
-        f.toLowerCase().startsWith(loraName.toLowerCase()),
+        (!loraName || f.toLowerCase().startsWith(loraName.toLowerCase())),
     )
     .map((f) => join(outputLorasDir, f));
 
@@ -332,6 +459,88 @@ async function findNewestLora(outputLorasDir, loraName) {
   const { statSync } = await import("fs");
   files.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
   return files[0];
+}
+
+function collectOutputFiles(entry) {
+  const files = [];
+  const outputs = entry?.outputs || {};
+  for (const node of Object.values(outputs)) {
+    for (const key of Object.keys(node || {})) {
+      const arr = node[key];
+      if (!Array.isArray(arr)) continue;
+      for (const item of arr) {
+        if (item?.filename) files.push(item);
+      }
+    }
+  }
+  return files;
+}
+
+async function downloadViewFile(cfg, meta, destPath) {
+  const qs = new URLSearchParams({
+    filename: meta.filename,
+    subfolder: meta.subfolder || "",
+    type: meta.type || "output",
+  });
+  const buf = await comfy(cfg.comfyUrl, `/view?${qs}`, { timeoutMs: 300000 });
+  await mkdir(dirname(destPath), { recursive: true });
+  await writeFile(destPath, buf);
+  return destPath;
+}
+
+/**
+ * Pull trained LoRA off Salad (or find local output) into project/loras.
+ */
+async function recoverTrainedLora(cfg, entry) {
+  const projectDir = join(ROOT, "loras");
+  await mkdir(projectDir, { recursive: true });
+  const dest = join(projectDir, `${cfg.loraName}.safetensors`);
+
+  if (cfg.remote) {
+    const files = collectOutputFiles(entry);
+    const loraMeta =
+      files.find(
+        (f) =>
+          /\.safetensors$/i.test(f.filename || "") &&
+          String(f.filename).toLowerCase().includes(cfg.loraName.toLowerCase()),
+      ) ||
+      files.find((f) => /\.safetensors$/i.test(f.filename || ""));
+
+    const candidates = [];
+    if (loraMeta) candidates.push(loraMeta);
+    // Common SaveLoRA locations
+    candidates.push(
+      { filename: `${cfg.loraName}.safetensors`, subfolder: "loras", type: "output" },
+      {
+        filename: `${cfg.loraName}.safetensors`,
+        subfolder: "",
+        type: "output",
+      },
+    );
+
+    let lastErr = null;
+    for (const meta of candidates) {
+      try {
+        await downloadViewFile(cfg, meta, dest);
+        console.log(`Downloaded from Salad → ${dest}`);
+        return dest;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw new Error(
+      `Could not download LoRA from Salad. Last error: ${lastErr?.message || lastErr}`,
+    );
+  }
+
+  const outputLorasDir = join(cfg.outputDir, "loras");
+  await sleep(500);
+  let trainedPath = await findNewestLora(outputLorasDir, cfg.loraName);
+  if (!trainedPath) trainedPath = await findNewestLora(outputLorasDir, "");
+  if (!trainedPath) {
+    throw new Error(`Could not find saved LoRA under ${outputLorasDir}`);
+  }
+  return trainedPath;
 }
 
 /** Windows-safe install: old LoRA in models/loras is often locked by ComfyUI. */
@@ -358,9 +567,6 @@ async function installLoraFile(src, dest) {
         console.warn(
           `Could not overwrite ${dest} (${err.message || err}).\n  Saved as: ${alt}`,
         );
-        console.warn(
-          "  Tip: unload the LoRA / free VRAM in ComfyUI, then rename the _new_ file.",
-        );
         return alt;
       }
       await new Promise((r) => setTimeout(r, 1000 * attempt));
@@ -372,15 +578,19 @@ async function installLoraFile(src, dest) {
 async function copyOutputs(cfg, trainedPath) {
   const copies = [];
 
-  if (cfg.copyToModelsLoras) {
-    const destDir = join(cfg.modelsDir || join(cfg.comfyRoot, "models"), "loras");
+  if (cfg.copyToProject || cfg.remote) {
+    const destDir = join(ROOT, "loras");
     await mkdir(destDir, { recursive: true });
     const dest = join(destDir, `${cfg.loraName}.safetensors`);
-    copies.push(await installLoraFile(trainedPath, dest));
+    if (resolve(trainedPath) !== resolve(dest)) {
+      copies.push(await installLoraFile(trainedPath, dest));
+    } else {
+      copies.push(dest);
+    }
   }
 
-  if (cfg.copyToProject) {
-    const destDir = join(ROOT, "loras");
+  if (cfg.copyToModelsLoras && !cfg.remote) {
+    const destDir = join(cfg.modelsDir || join(cfg.comfyRoot, "models"), "loras");
     await mkdir(destDir, { recursive: true });
     const dest = join(destDir, `${cfg.loraName}.safetensors`);
     copies.push(await installLoraFile(trainedPath, dest));
@@ -396,9 +606,14 @@ async function main() {
   console.log(`Checkpoint: ${cfg.checkpoint}`);
   console.log(`LoRA name:  ${cfg.loraName}`);
   console.log(`Steps:      ${cfg.steps}  rank: ${cfg.rank}  lr: ${cfg.learningRate}`);
-  console.log(`ComfyUI:    ${cfg.comfyUrl}`);
+  console.log(
+    `Train opts: offloading=${!!cfg.offloading} bypass=${!!cfg.bypassMode}${
+      cfg.remote ? " (Salad forces full GPU load)" : ""
+    }`,
+  );
+  console.log(`ComfyUI:    ${cfg.comfyUrl}${cfg.remote ? " (Salad)" : ""}`);
 
-  if (!existsSync(cfg.comfyRoot)) {
+  if (!cfg.remote && !existsSync(cfg.comfyRoot)) {
     throw new Error(`comfyRoot not found: ${cfg.comfyRoot}`);
   }
 
@@ -407,7 +622,9 @@ async function main() {
   cfg.outputDir = live.outputDir;
   cfg.modelsDir = live.modelsDir;
 
-  const { count } = await syncDataset(cfg);
+  const { count } = cfg.remote
+    ? await syncDatasetRemote(cfg)
+    : await syncDatasetLocal(cfg);
   if (count < 5) {
     console.warn(
       `\nWarning: only ${count} images — LoRA quality will be limited. Aim for 15–30+.`,
@@ -427,30 +644,16 @@ async function main() {
 
   const workflow = buildTrainWorkflow(cfg);
   const started = Date.now();
-  await queueAndWait(cfg.comfyUrl, workflow);
+  const entry = await queueAndWait(cfg.comfyUrl, workflow);
   const mins = ((Date.now() - started) / 60000).toFixed(1);
   console.log(`Training finished in ${mins} min`);
 
-  const outputLorasDir = join(cfg.outputDir, "loras");
-  // Give filesystem a moment
-  await sleep(500);
-  let trainedPath = await findNewestLora(outputLorasDir, cfg.loraName);
-  if (!trainedPath) {
-    // fallback: any new safetensors in output/loras
-    trainedPath = await findNewestLora(outputLorasDir, "");
-  }
-
-  if (!trainedPath) {
-    console.warn(`\nCould not find saved LoRA under ${outputLorasDir}`);
-    console.warn("Check ComfyUI output/loras manually.");
-    return;
-  }
-
-  console.log(`\nSaved by ComfyUI:\n  ${trainedPath}`);
+  const trainedPath = await recoverTrainedLora(cfg, entry);
+  console.log(`\nSaved:\n  ${trainedPath}`);
   const copies = await copyOutputs(cfg, trainedPath);
   for (const c of copies) console.log(`Copied → ${c}`);
 
-  console.log(`\nUse in ComfyUI with trigger word: ${cfg.trigger}`);
+  console.log(`\nUse with trigger word: ${cfg.trigger}`);
   console.log(`LoRA file: ${cfg.loraName}.safetensors`);
 }
 

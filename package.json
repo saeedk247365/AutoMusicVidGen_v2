@@ -24,10 +24,12 @@
     "generate:adam:approve": "node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam --approve-master --master-only",
     "generate:adam": "node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam",
     "train:adam": "node scripts/train-lora.js --train-config train-config-adam.json --character characters/adam.json",
+    "train:adam:salad": "node scripts/train-lora.js --salad --train-config train-config-adam.json --character characters/adam.json",
     "generate:sasha:master": "node scripts/generate-dataset.js --character characters/sasha.json --out dataset/sasha --master-only --bootstrap-from-text",
     "generate:sasha:approve": "node scripts/generate-dataset.js --character characters/sasha.json --out dataset/sasha --approve-master --master-only",
     "generate:sasha": "node scripts/generate-dataset.js --character characters/sasha.json --out dataset/sasha",
-    "train:sasha": "node scripts/train-lora.js --train-config train-config-sasha.json --character characters/sasha.json"
+    "train:sasha": "node scripts/train-lora.js --train-config train-config-sasha.json --character characters/sasha.json",
+    "train:sasha:salad": "node scripts/train-lora.js --salad --train-config train-config-sasha.json --character characters/sasha.json"
   },
   "dependencies": {
     "ejs": "^6.0.1",

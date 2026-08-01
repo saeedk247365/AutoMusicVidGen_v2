@@ -118,9 +118,19 @@
     const btnPause = $("btnPause");
     const btnResume = $("btnResume");
     const btnStop = $("btnStop");
-    if (btnPause) btnPause.disabled = paused || stopped || state.stage === "done";
+    const btnContinue = $("btnContinue");
+    const btnNewProject = $("btnNewProject");
+    if (btnPause) btnPause.disabled = paused || stopped || state.stage === "done" || !!state.viewOnly;
     if (btnResume) btnResume.disabled = !paused || stopped;
-    if (btnStop) btnStop.disabled = stopped || state.stage === "done";
+    if (btnStop) btnStop.disabled = stopped || state.stage === "done" || !!state.viewOnly;
+    if (btnContinue) {
+      // Allow Continue while paused so Pause → change GPU → Continue resumes with new route
+      btnContinue.disabled =
+        (!!state.running && !state.paused) || !state.songDir || stopped;
+    }
+    if (btnNewProject) {
+      btnNewProject.disabled = !!state.running;
+    }
   }
 
   async function refreshSaladStatus() {
@@ -159,6 +169,122 @@
       pill.textContent = "Salad: unreachable";
       pill.className = "salad-pill err";
       log(`Salad status: ${err.message || err}`);
+    }
+  }
+
+  function fmtPct(n) {
+    return n == null || !Number.isFinite(Number(n)) ? "—" : `${Math.round(Number(n))}%`;
+  }
+
+  function setMeter(scopeEl, key, percent, label) {
+    const meter = scopeEl?.querySelector(`.meter[data-key="${key}"]`);
+    if (!meter) return;
+    const bar = meter.querySelector(".meter-bar");
+    const txt = meter.querySelector(".meter-txt");
+    const pct = percent == null || !Number.isFinite(Number(percent)) ? null : Number(percent);
+    if (bar) bar.style.width = pct == null ? "0%" : `${Math.max(0, Math.min(100, pct))}%`;
+    if (txt) txt.textContent = label;
+    meter.classList.toggle("hot", pct != null && pct >= 85);
+    meter.title = label;
+  }
+
+  function renderResourceMeters(data) {
+    const root = $("resourceMeters");
+    if (!root || !data) return;
+    const localGroup = root.querySelector('[data-scope="local"]');
+    const saladGroup = root.querySelector('[data-scope="salad"]');
+    const local = data.local || {};
+    const salad = data.salad || {};
+
+    setMeter(
+      localGroup,
+      "cpu",
+      local.cpuPercent,
+      `CPU ${fmtPct(local.cpuPercent)}`,
+    );
+    setMeter(
+      localGroup,
+      "ram",
+      local.ramPercent,
+      `RAM ${fmtPct(local.ramPercent)}`,
+    );
+    const localGpuLabel =
+      local.gpuPercent == null && local.gpuVramPercent == null
+        ? "GPU —"
+        : `GPU ${fmtPct(local.gpuPercent)}${
+            local.gpuVramPercent != null ? ` · VRAM ${fmtPct(local.gpuVramPercent)}` : ""
+          }`;
+    setMeter(
+      localGroup,
+      "gpu",
+      local.gpuPercent ?? local.gpuVramPercent,
+      localGpuLabel,
+    );
+    if (localGroup) {
+      localGroup.title = local.gpuName
+        ? `Local · ${local.gpuName}`
+        : "Local machine";
+    }
+
+    const saladLive = !!(salad.available || salad.comfyUp);
+    if (saladGroup) {
+      saladGroup.classList.toggle("dim", !saladLive);
+      const tipParts = [
+        salad.gpuName ? salad.gpuName : null,
+        salad.note || null,
+        !saladLive ? "Comfy gateway unreachable — restart Salad container" : null,
+      ].filter(Boolean);
+      saladGroup.title = tipParts.length
+        ? `Salad · ${tipParts.join(" · ")}`
+        : "Salad Cloud";
+    }
+    setMeter(
+      saladGroup,
+      "cpu",
+      salad.cpuPercent,
+      salad.cpuPercent != null
+        ? `CPU ${fmtPct(salad.cpuPercent)}`
+        : saladLive
+          ? "CPU n/a"
+          : "CPU —",
+    );
+    setMeter(
+      saladGroup,
+      "ram",
+      salad.ramPercent,
+      salad.ramPercent != null
+        ? `RAM ${fmtPct(salad.ramPercent)}`
+        : saladLive
+          ? "RAM …"
+          : "RAM —",
+    );
+    const saladGpuLabel =
+      salad.gpuPercent != null
+        ? `GPU ${fmtPct(salad.gpuPercent)}${
+            salad.gpuVramPercent != null ? ` · VRAM ${fmtPct(salad.gpuVramPercent)}` : ""
+          }`
+        : salad.gpuVramPercent != null
+          ? `VRAM ${fmtPct(salad.gpuVramPercent)}`
+          : saladLive
+            ? "GPU …"
+            : "GPU —";
+    setMeter(
+      saladGroup,
+      "gpu",
+      salad.gpuPercent ?? salad.gpuVramPercent,
+      saladGpuLabel,
+    );
+  }
+
+  async function refreshMetrics() {
+    try {
+      const res = await fetch("/api/metrics");
+      const data = await res.json();
+      if (!data.ok) return;
+      state.metrics = data;
+      renderResourceMeters(data);
+    } catch {
+      /* ignore transient poll errors */
     }
   }
 
@@ -271,6 +397,75 @@
       .join("");
   }
 
+  function optionList(values, selected) {
+    return values
+      .map(
+        (v) =>
+          `<option value="${esc(v)}" ${v === selected ? "selected" : ""}>${esc(v)}</option>`,
+      )
+      .join("");
+  }
+
+  const SCRIPT_POSES = [
+    "stand",
+    "sit",
+    "kneel",
+    "wave",
+    "point",
+    "hands_up",
+    "walk",
+    "stomp",
+    "clap",
+    "stretch",
+    "tiptoe",
+    "dance",
+  ];
+  const SCRIPT_EXPR = [
+    "happy",
+    "curious",
+    "surprised",
+    "excited",
+    "proud",
+    "worried",
+    "determined",
+  ];
+  const SCRIPT_FACING = ["front", "three_quarter", "profile", "back"];
+  const SCRIPT_STORY = ["problem", "discovery", "fun", "celebration"];
+  const SCRIPT_CAM = [
+    "full_body",
+    "medium_full",
+    "medium",
+    "close_up",
+    "wide",
+  ];
+
+  function collectScriptEdits() {
+    const cards = [...document.querySelectorAll("#scriptsView .shot-card")];
+    return cards.map((card) => {
+      const id = card.dataset.beatId;
+      const val = (sel) => card.querySelector(sel)?.value ?? "";
+      const chars = [...card.querySelectorAll(".shot-char")].map((row) => ({
+        name: row.dataset.name || row.querySelector("[data-f=name]")?.value || "",
+        pose: row.querySelector("[data-f=pose]")?.value || "stand",
+        expression: row.querySelector("[data-f=expression]")?.value || "happy",
+        facing: row.querySelector("[data-f=facing]")?.value || "front",
+      }));
+      return {
+        id,
+        lyricHint: val("[data-f=lyricHint]"),
+        cause: val("[data-f=cause]"),
+        effect: val("[data-f=effect]"),
+        interaction: val("[data-f=interaction]"),
+        cutMotivation: val("[data-f=cutMotivation]"),
+        actionPhase: val("[data-f=actionPhase]"),
+        storyBeat: val("[data-f=storyBeat]"),
+        location: val("[data-f=location]"),
+        camera: val("[data-f=camera]"),
+        characters: chars,
+      };
+    });
+  }
+
   function renderScripts(tabs) {
     const el = $("scriptsView");
     const beats = tabs?.scripts?.beats || [];
@@ -279,16 +474,79 @@
       el.textContent = "No scripts yet";
       return;
     }
-    el.className = "script-list";
+    // Don't wipe in-progress edits
+    if (el.contains(document.activeElement)) return;
+
+    const locs = tabs?.scripts?.locations?.length
+      ? tabs.scripts.locations
+      : [...new Set(beats.map((b) => b.location).filter(Boolean))];
+
+    el.className = "shot-list";
     el.innerHTML = beats
-      .map(
-        (b) => `<div class="script-item">
-        <h4>${esc(b.id)}</h4>
-        <p><strong>Lyric hint:</strong> ${esc(b.lyricHint || "—")}</p>
-        <p class="meta">${esc(b.cause || "")} → ${esc(b.effect || "")}</p>
-        <p class="meta">cut: ${esc(b.cutMotivation || "—")} · phase: ${esc(b.actionPhase || "—")}</p>
-      </div>`,
-      )
+      .map((b) => {
+        const chars = (b.characters || []).length
+          ? b.characters
+          : [{ name: "Adam", pose: "stand", expression: "happy", facing: "front" }];
+        const charHtml = chars
+          .map(
+            (c) => `<div class="shot-char" data-name="${esc(c.name)}">
+            <span class="shot-char-name">${esc(c.name)}</span>
+            <label>Pose <select data-f="pose">${optionList(SCRIPT_POSES, c.pose || "stand")}</select></label>
+            <label>Face <select data-f="expression">${optionList(SCRIPT_EXPR, c.expression || "happy")}</select></label>
+            <label>Facing <select data-f="facing">${optionList(SCRIPT_FACING, c.facing || "front")}</select></label>
+          </div>`,
+          )
+          .join("");
+        const t0 = b.startSec != null ? Number(b.startSec).toFixed(1) : "?";
+        const t1 = b.endSec != null ? Number(b.endSec).toFixed(1) : "?";
+        return `<article class="shot-card" data-beat-id="${esc(b.id)}" data-stem="${esc(b.keyframeStem || "")}">
+          <header class="shot-head">
+            <div>
+              <h4>Shot ${esc(String(b.index || ""))}: ${esc(b.id)}</h4>
+              <p class="meta">${esc(b.section || "")} · ${t0}s–${t1}s · file ${esc(b.keyframeStem || "")}.png</p>
+            </div>
+            <div class="shot-actions">
+              <button type="button" class="btn tiny" data-act="goto-kf" data-beat="${esc(b.id)}">View still</button>
+              <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(b.id)}">Remake still</button>
+              <button type="button" class="btn tiny" data-act="remake-clip" data-beat="${esc(b.id)}">Remake still+clip</button>
+            </div>
+          </header>
+          <p class="shot-plain">This shot is a frozen picture of what happens on this lyric line. Change the fields, then remake the still.</p>
+          <div class="shot-grid">
+            <label class="field wide">Lyric line (what kids hear)
+              <input data-f="lyricHint" value="${esc(b.lyricHint || "")}" />
+            </label>
+            <label class="field">What just happened (cause)
+              <input data-f="cause" value="${esc(b.cause || "")}" />
+            </label>
+            <label class="field">What this shot shows (effect)
+              <input data-f="effect" value="${esc(b.effect || "")}" />
+            </label>
+            <label class="field wide">Action on screen (plain English)
+              <input data-f="interaction" value="${esc(b.interaction || "")}" />
+            </label>
+            <label class="field">Room
+              <select data-f="location">${optionList(locs.length ? locs : [b.location || "home"], b.location || "")}</select>
+            </label>
+            <label class="field">Story beat
+              <select data-f="storyBeat">${optionList(SCRIPT_STORY, b.storyBeat || "fun")}</select>
+            </label>
+            <label class="field">Camera
+              <select data-f="camera">${optionList(SCRIPT_CAM, b.camera || "full_body")}</select>
+            </label>
+            <label class="field">Why we cut here
+              <input data-f="cutMotivation" value="${esc(b.cutMotivation || "")}" />
+            </label>
+            <label class="field">Action phase
+              <input data-f="actionPhase" value="${esc(b.actionPhase || "")}" />
+            </label>
+          </div>
+          <div class="shot-cast">
+            <h5>Who is in the shot</h5>
+            ${charHtml}
+          </div>
+        </article>`;
+      })
       .join("");
   }
 
@@ -303,9 +561,13 @@
     el.className = "grid";
     el.innerHTML = images
       .map(
-        (img) => `<div class="card">
+        (img) => `<div class="card kf-card" data-beat="${esc(img.beatId || "")}">
         <img src="${img.url}?t=${Date.now()}" alt="${esc(img.name)}" />
         <div class="cap">${esc(img.name)}</div>
+        <div class="kf-actions">
+          <button type="button" class="btn tiny" data-act="edit-script" data-beat="${esc(img.beatId || "")}">Edit script</button>
+          <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(img.beatId || "")}">Remake</button>
+        </div>
       </div>`,
       )
       .join("");
@@ -375,7 +637,23 @@
     if (typeof s.autoApprove === "boolean") autoApprove.checked = s.autoApprove;
     if (typeof s.paused === "boolean") state.paused = s.paused;
     if (typeof s.stopped === "boolean") state.stopped = s.stopped;
+    if (typeof s.viewOnly === "boolean") state.viewOnly = s.viewOnly;
+    if (typeof s.running === "boolean") state.running = s.running;
     if (s.gpu?.backend && $("gpuBackend")) $("gpuBackend").value = s.gpu.backend;
+    if (s.outputResolution && $("outputResolution")) {
+      $("outputResolution").value = s.outputResolution;
+    }
+    const pill = $("projectPill");
+    if (pill) {
+      pill.textContent = s.songDir ? `Project: ${s.songDir}` : "Project: —";
+      pill.title = s.songDir
+        ? `Active project (saved across restarts)\n${s.songDir}`
+        : "No project open";
+    }
+    if (s.songDir && $("batchPicker")) {
+      const opt = [...$("batchPicker").options].find((o) => o.value === s.songDir);
+      if (opt) $("batchPicker").value = s.songDir;
+    }
     if (s.tabs) renderAll(s.tabs);
     updateButtons();
     loadSetupLists();
@@ -441,9 +719,116 @@
       return;
     }
     state.gpu = data;
+    const routeNote =
+      data.backend === "split"
+        ? ` · prep ${data.comfyUrl || "local"} · clips ${data.clipsComfyUrl || "?"}`
+        : "";
     log(
-      `GPU → ${data.backend} (${data.comfyUrl})${data.comfyUp ? " · up" : " · not reachable yet"}`,
+      `GPU → ${data.backend} (${data.comfyUrl})${data.comfyUp ? " · up" : " · not reachable yet"}${routeNote}`,
     );
+  });
+
+  $("outputResolution")?.addEventListener("change", async () => {
+    const id = $("outputResolution").value;
+    const res = await fetch("/api/resolution", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      log(`Resolution switch failed: ${data.error || res.status}`);
+      $("outputResolution").value = state.outputResolution || "preview";
+      return;
+    }
+    state.outputResolution = data.outputResolution;
+    const p = data.preset;
+    log(
+      `Output → ${data.outputResolution}` +
+        (p ? ` (${p.stillWidth}×${p.stillHeight} stills / Wan)` : ""),
+    );
+  });
+
+  async function refreshBatchPicker() {
+    const sel = $("batchPicker");
+    if (!sel) return;
+    try {
+      const res = await fetch("/api/batches");
+      const data = await res.json();
+      if (!data.ok) return;
+      const cur = data.current || state.songDir || "";
+      const prev = sel.value;
+      sel.innerHTML = `<option value="">— open batch —</option>`;
+      for (const b of data.batches || []) {
+        const marks = [
+          b.hasFinal ? "final" : null,
+          b.hasClips ? "clips" : null,
+          b.hasKeyframes ? "kf" : null,
+        ]
+          .filter(Boolean)
+          .join(",");
+        const opt = document.createElement("option");
+        opt.value = b.path;
+        opt.textContent = `${b.date}/${b.slug}${marks ? ` [${marks}]` : ""}`;
+        sel.appendChild(opt);
+      }
+      sel.value = cur || prev || "";
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  $("batchPicker")?.addEventListener("change", async () => {
+    const path = $("batchPicker").value;
+    if (!path) return;
+    const res = await fetch("/api/open-song", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      log(`Open batch failed: ${data.error || res.status}`);
+      return;
+    }
+    state.songDir = data.songDir;
+    if (data.tabs) renderAll(data.tabs);
+    log(`Viewing ${data.songDir}`);
+    // Jump to richest available tab
+    const t = data.tabs || {};
+    if (t.final?.url) selectTab("final");
+    else if (t.clips?.videos?.length) selectTab("clips");
+    else if (t.keyframes?.images?.length) selectTab("keyframes");
+    else if (t.song?.url) selectTab("song");
+    else if (t.lyrics?.text) selectTab("lyrics");
+  });
+
+  $("btnContinue")?.addEventListener("click", async () => {
+    const res = await fetch("/api/continue", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`Continue failed: ${data.error}`);
+    else if (data.resumed) {
+      state.paused = false;
+      log(
+        `Resumed with GPU ${data.backend || state.gpu?.backend || "?"}` +
+          (data.clipsComfyUrl ? ` · clips ${data.clipsComfyUrl}` : ""),
+      );
+      updateButtons();
+    } else log(`Continuing pipeline for ${data.songDir || state.songDir}`);
+  });
+
+  $("btnNewProject")?.addEventListener("click", async () => {
+    if (
+      !confirm(
+        "Start a brand-new project? Your current batch stays on disk; this only switches the active session.",
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/new-project", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) log(`New project failed: ${data.error}`);
+    else log("Starting new project…");
   });
 
   $("btnPause")?.addEventListener("click", async () => {
@@ -459,7 +844,12 @@
     const res = await fetch("/api/resume", { method: "POST" });
     const data = await res.json();
     if (!data.ok) log(`Resume failed: ${data.error}`);
-    else log(`Resumed`);
+    else {
+      log(
+        `Resumed · GPU ${data.backend || state.gpu?.backend || "?"}` +
+          (data.clipsComfyUrl ? ` · clips ${data.clipsComfyUrl}` : ""),
+      );
+    }
     state.paused = false;
     updateButtons();
   });
@@ -517,13 +907,116 @@
     await loadSetupLists();
   });
 
+  async function saveScripts() {
+    const beats = collectScriptEdits();
+    if (!beats.length) {
+      log("No script cards to save");
+      return { ok: false };
+    }
+    const status = $("scriptsSaveStatus");
+    if (status) status.textContent = "Saving…";
+    const res = await fetch("/api/scripts/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ beats }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      if (status) status.textContent = data.error || "Save failed";
+      log(`Save scripts failed: ${data.error || res.status}`);
+      return data;
+    }
+    if (status) status.textContent = "Saved";
+    log(`Saved ${beats.length} shot script(s)`);
+    return data;
+  }
+
+  async function remakeBeat(beatId, { animate = false } = {}) {
+    if (!beatId) return;
+    const beats = collectScriptEdits();
+    log(`Remaking ${beatId}${animate ? " + clip" : ""}…`);
+    const res = await fetch("/api/remake-keyframe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        beatId,
+        animate,
+        reuseCutouts: true,
+        beats,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      log(`Remake failed: ${data.error || res.status}`);
+      return;
+    }
+    log(`Remake finished: ${beatId}`);
+    selectTab("keyframes");
+  }
+
+  $("btnSaveScripts")?.addEventListener("click", () => {
+    saveScripts();
+  });
+
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-act]");
+    if (!btn) return;
+    const act = btn.dataset.act;
+    const beat = btn.dataset.beat;
+    if (act === "goto-kf" || act === "edit-script") {
+      if (act === "edit-script") selectTab("scripts");
+      else selectTab("keyframes");
+      if (act === "goto-kf") {
+        selectTab("keyframes");
+        const card = document.querySelector(`.kf-card[data-beat="${CSS.escape(beat)}"]`);
+        card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (act === "edit-script") {
+        const card = document.querySelector(`.shot-card[data-beat-id="${CSS.escape(beat)}"]`);
+        card?.scrollIntoView({ behavior: "smooth", block: "center" });
+        card?.querySelector("[data-f=lyricHint]")?.focus();
+      }
+      return;
+    }
+    if (act === "remake") {
+      remakeBeat(beat, { animate: false });
+      return;
+    }
+    if (act === "remake-clip") {
+      remakeBeat(beat, { animate: true });
+    }
+  });
+
   btnApprove.addEventListener("click", async () => {
     const gate = waitingGate();
     if (!gate) return;
     const payload = {};
     if (gate === "setup") Object.assign(payload, collectSetupPayload());
     if (gate === "lyrics") payload.text = lyricsText.value;
-    if (gate === "plan") payload.raw = planRaw.value;
+    if (gate === "plan") {
+      // Prefer raw JSON; if shot cards edited, merge those fields into raw first
+      try {
+        const edits = collectScriptEdits();
+        if (edits.length && planRaw.value.trim()) {
+          const plan = JSON.parse(planRaw.value);
+          const byId = new Map(edits.map((e) => [e.id, e]));
+          plan.beats = (plan.beats || []).map((b) => {
+            const e = byId.get(b.id);
+            if (!e) return b;
+            return {
+              ...b,
+              ...Object.fromEntries(
+                Object.entries(e).filter(([k, v]) => k !== "id" && v != null && v !== ""),
+              ),
+            };
+          });
+          planRaw.value = JSON.stringify(plan, null, 2);
+        }
+      } catch {
+        /* keep planRaw as-is */
+      }
+      payload.raw = planRaw.value;
+    }
     if (gate === "setup" && !payload.castIds?.length) {
       log("Pick at least one cast member");
       return;
@@ -575,9 +1068,15 @@
         state.gpu = msg;
         if ($("gpuBackend") && msg.backend) $("gpuBackend").value = msg.backend;
         log(`GPU: ${msg.backend} → ${msg.comfyUrl}`);
+      } else if (msg.type === "resolution") {
+        state.outputResolution = msg.outputResolution;
+        if ($("outputResolution") && msg.outputResolution) {
+          $("outputResolution").value = msg.outputResolution;
+        }
       } else if (msg.type === "stage" || msg.type === "state" || msg.type === "auto_approve") {
         applyState(msg);
         if (msg.message) log(msg.message);
+        if (msg.type === "state") refreshBatchPicker();
       }
     } catch (err) {
       console.warn(err);
@@ -587,6 +1086,10 @@
 
   applyState(state);
   renderAll(state.tabs || {});
+  refreshBatchPicker();
   log("Connected to mvid GUI");
   refreshSaladStatus();
+  refreshMetrics();
+  setInterval(refreshMetrics, 2000);
+  setInterval(refreshSaladStatus, 30000);
 })();

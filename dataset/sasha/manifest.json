@@ -1,0 +1,324 @@
+{
+  "character": "Sasha",
+  "trigger": "sashamom",
+  "pipeline": "identity-first-persistent-state",
+  "philosophy": "Identity is preserved. Pose is edited.",
+  "identityBackend": "faceid",
+  "lora": null,
+  "baseDenoise": 0.55,
+  "denoiseBands": {
+    "easy": 0.55,
+    "medium": 0.72,
+    "hard": 0.82,
+    "walk": [
+      0.72,
+      0.78
+    ]
+  },
+  "chaining": false,
+  "keyframeRefresh": false,
+  "faceIdPolicy": "master | rebuilds | denoise>=0.65 | optional --aux-faceid",
+  "identityGate": {
+    "enabled": true,
+    "threshold": 0.4,
+    "retries": 3
+  },
+  "keyframes": [
+    {
+      "id": "front",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left45",
+      "angleKey": "threequarter_left",
+      "yaw": -55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right45",
+      "angleKey": "threequarter_right",
+      "yaw": 55,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "left_profile",
+      "angleKey": "side_left",
+      "yaw": -90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "right_profile",
+      "angleKey": "side_right",
+      "yaw": 90,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "back",
+      "angleKey": "threequarter_back_left",
+      "yaw": -145,
+      "expression": "neutral",
+      "bust": false
+    },
+    {
+      "id": "smile",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "happy",
+      "bust": false
+    },
+    {
+      "id": "neutral",
+      "angleKey": "front",
+      "yaw": 0,
+      "expression": "neutral",
+      "bust": true
+    }
+  ],
+  "shots": [
+    {
+      "id": "01_front_stand",
+      "source": "keyframe:front",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7586265206336975,
+        "reason": "ok"
+      },
+      "seedUsed": 888701
+    },
+    {
+      "id": "02_side_stand",
+      "source": "keyframe:left_profile",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -90,
+      "targetYaw": -90,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888718
+    },
+    {
+      "id": "03_threequarter_stand",
+      "source": "keyframe:left45",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888735
+    },
+    {
+      "id": "04_kneeling",
+      "source": "keyframe:front",
+      "denoise": 1,
+      "rebuild": true,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7735044956207275,
+        "reason": "ok"
+      },
+      "seedUsed": 888752
+    },
+    {
+      "id": "05_walking",
+      "source": "keyframe:right45",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 55,
+      "targetYaw": 55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888769
+    },
+    {
+      "id": "06_hands_open",
+      "source": "keyframe:front",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888786
+    },
+    {
+      "id": "07_pointing",
+      "source": "keyframe:front",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7476145029067993,
+        "reason": "ok"
+      },
+      "seedUsed": 888803
+    },
+    {
+      "id": "08_waving",
+      "source": "keyframe:front",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.7941873669624329,
+        "reason": "ok"
+      },
+      "seedUsed": 888820
+    },
+    {
+      "id": "09_happy_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6257001161575317,
+        "reason": "ok"
+      },
+      "seedUsed": 888837
+    },
+    {
+      "id": "10_sad_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.5608047246932983,
+        "reason": "ok"
+      },
+      "seedUsed": 888854
+    },
+    {
+      "id": "11_surprised_expression",
+      "source": "keyframe:neutral",
+      "denoise": 0.62,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888871
+    },
+    {
+      "id": "12_close_face",
+      "source": "keyframe:neutral",
+      "denoise": 0.55,
+      "rebuild": false,
+      "faceId": false,
+      "sourceYaw": 0,
+      "targetYaw": 0,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.6127387881278992,
+        "reason": "ok"
+      },
+      "seedUsed": 888888
+    },
+    {
+      "id": "13_side_walk",
+      "source": "keyframe:right_profile",
+      "denoise": 0.72,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": 90,
+      "targetYaw": 90,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": true,
+        "pass": true,
+        "similarity": null,
+        "reason": "skipped_no_face"
+      },
+      "seedUsed": 888905
+    },
+    {
+      "id": "14_threequarter_wave",
+      "source": "keyframe:left45",
+      "denoise": 0.75,
+      "rebuild": false,
+      "faceId": true,
+      "sourceYaw": -55,
+      "targetYaw": -55,
+      "refreshedKeyframe": null,
+      "identityGate": {
+        "skipped": false,
+        "pass": true,
+        "similarity": 0.5788146257400513,
+        "reason": "ok"
+      },
+      "seedUsed": 888922
+    }
+  ]
+}
