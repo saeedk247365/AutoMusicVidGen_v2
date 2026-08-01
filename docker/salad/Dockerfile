@@ -47,7 +47,8 @@ RUN grep -viE '^(torch|torchvision|torchaudio)([<=>![:space:]]|$)' requirements.
     && pip install --no-cache-dir --force-reinstall \
       torch torchvision torchaudio \
       --index-url https://download.pytorch.org/whl/cu128 \
-    && python -c "import torch; v=torch.__version__; a=torch.cuda.get_arch_list(); print('torch', v, 'archs', a); assert 'cu128' in v, v; assert any('120' in x for x in a), a"
+    && python -c "import torch; v=torch.__version__; print('torch', v); assert 'cu128' in v, v"
+# Note: get_arch_list() is empty on CPU-only GH Actions builders; sm_120 is in cu128 wheels.
 # Optional custom nodes used by some stills / control paths (safe no-ops if unused)
 RUN mkdir -p custom_nodes \
     && git clone --depth 1 https://github.com/cubiq/ComfyUI_IPAdapter_plus.git custom_nodes/ComfyUI_IPAdapter_plus || true \
