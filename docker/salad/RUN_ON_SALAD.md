@@ -43,6 +43,8 @@ This creates the container group (GPU, port 8188, auth), starts it, and writes `
 
 First boot downloads Wan weights (~40GB) — wait until Status = running/ready (can take a while; Salad doesn’t bill the same during image prepare).
 
+**RTX 50-series (5080/5090):** the image must start Comfy with `--disable-cuda-malloc`. Without that, Wan can sit “running” for 30+ minutes with flat VRAM. Rebuild/push after pulling latest `docker/salad/entrypoint.sh`, then redeploy.
+
 ## 4) Generate
 
 ```powershell

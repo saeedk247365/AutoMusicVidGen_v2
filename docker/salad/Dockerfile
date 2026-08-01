@@ -7,14 +7,16 @@
 # https://docs.salad.com/container-engine/tutorials/machine-learning/pytorch-rtx5090
 FROM pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime
 
+# RTX 50-series: expandable segments + entrypoint --disable-cuda-malloc
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
     COMFY_DIR=/opt/ComfyUI \
-    COMFY_PORT=8888 \
+    COMFY_PORT=8188 \
     MODEL_CACHE=/opt/ComfyUI/models \
-    HF_HUB_ENABLE_HF_TRANSFER=1
+    HF_HUB_ENABLE_HF_TRANSFER=1 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
@@ -72,7 +74,7 @@ RUN chmod +x ${COMFY_DIR}/entrypoint.sh \
       ${COMFY_DIR}/temp \
       /tmp/ready
 
-EXPOSE 8888
+EXPOSE 8188
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS "http://127.0.0.1:${COMFY_PORT}/system_stats" || exit 1
