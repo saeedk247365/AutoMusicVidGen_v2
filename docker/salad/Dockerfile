@@ -10,6 +10,7 @@ FROM pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
     COMFY_DIR=/opt/ComfyUI \
     COMFY_PORT=8888 \
     MODEL_CACHE=/opt/ComfyUI/models \
