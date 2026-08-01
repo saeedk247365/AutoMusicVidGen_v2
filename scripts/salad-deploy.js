@@ -111,17 +111,17 @@ async function createGroup(org, project, name, image, gpuIds) {
     networking: {
       protocol: "http",
       auth: true,
-      port: 8188,
+      port: 8888,
     },
     startup_probe: {
-      http: { path: "/system_stats", port: 8188, scheme: "http" },
+      http: { path: "/system_stats", port: 8888, scheme: "http" },
       initial_delay_seconds: 60,
       period_seconds: 15,
       timeout_seconds: 10,
       failure_threshold: 40,
     },
     readiness_probe: {
-      http: { path: "/system_stats", port: 8188, scheme: "http" },
+      http: { path: "/system_stats", port: 8888, scheme: "http" },
       initial_delay_seconds: 30,
       period_seconds: 10,
       timeout_seconds: 5,

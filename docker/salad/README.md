@@ -32,7 +32,7 @@ gh workflow run salad-comfy-image.yml -R saeedk247365/AutoMusicVidGen_v2
 | Setting | Value |
 |---------|--------|
 | Image | `saeedk247365/amvg-comfyui:kids-hit-wan22` |
-| Gateway port | **8188** |
+| Gateway port | **8888** |
 | Startup / ready probe | `GET /system_stats` (long start period — model download) |
 | GPU | RTX 4090-class 24GB+ |
 | RAM / disk | 30GB+ RAM, 80GB+ disk |

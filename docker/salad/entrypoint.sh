@@ -2,9 +2,9 @@
 set -euo pipefail
 
 COMFY_DIR="${COMFY_DIR:-/opt/ComfyUI}"
-# Salad gateway / deploy use 8188; image historically defaulted 8888.
-# Prefer explicit COMFY_PORT, then Salad PORT, then 8188.
-COMFY_PORT="${COMFY_PORT:-${PORT:-8188}}"
+# Salad Container Gateway for this group is configured on port 8888.
+# Prefer explicit COMFY_PORT, then Salad PORT, then 8888.
+COMFY_PORT="${COMFY_PORT:-${PORT:-8888}}"
 cd "$COMFY_DIR"
 
 echo "════════════════════════════════════════════════════"
