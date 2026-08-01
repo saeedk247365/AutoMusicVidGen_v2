@@ -364,6 +364,8 @@ function motionPromptFor(stem, actions, { kidsHit = false } = {}) {
       ),
       proximity: beat?.proximity || "",
       closeInteraction: !!beat?.closeInteraction,
+      cause: beat?.cause || "",
+      effect: beat?.effect || "",
     });
   }
 

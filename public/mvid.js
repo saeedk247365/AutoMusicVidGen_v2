@@ -227,12 +227,19 @@
     }
 
     const saladLive = !!(salad.available || salad.comfyUp);
+    const saladDown = !!(salad.configured && !saladLive);
+    const downLabel =
+      salad.httpStatus === 503
+        ? "Comfy 503"
+        : salad.httpStatus
+          ? `HTTP ${salad.httpStatus}`
+          : "Comfy down";
     if (saladGroup) {
       saladGroup.classList.toggle("dim", !saladLive);
       const tipParts = [
         salad.gpuName ? salad.gpuName : null,
         salad.note || null,
-        !saladLive ? "Comfy gateway unreachable — restart Salad container" : null,
+        saladDown ? downLabel : null,
       ].filter(Boolean);
       saladGroup.title = tipParts.length
         ? `Salad · ${tipParts.join(" · ")}`
@@ -245,8 +252,10 @@
       salad.cpuPercent != null
         ? `CPU ${fmtPct(salad.cpuPercent)}`
         : saladLive
-          ? "CPU n/a"
-          : "CPU —",
+          ? "CPU n/a (set SALAD_ORG)"
+          : saladDown
+            ? `CPU · ${downLabel}`
+            : "CPU —",
     );
     setMeter(
       saladGroup,
@@ -256,7 +265,9 @@
         ? `RAM ${fmtPct(salad.ramPercent)}`
         : saladLive
           ? "RAM …"
-          : "RAM —",
+          : saladDown
+            ? `RAM · ${downLabel}`
+            : "RAM —",
     );
     const saladGpuLabel =
       salad.gpuPercent != null
@@ -267,7 +278,9 @@
           ? `VRAM ${fmtPct(salad.gpuVramPercent)}`
           : saladLive
             ? "GPU …"
-            : "GPU —";
+            : saladDown
+              ? `GPU · ${downLabel}`
+              : "GPU —";
     setMeter(
       saladGroup,
       "gpu",
@@ -466,6 +479,38 @@
     });
   }
 
+  /** beatId → { at, keyframeMtime, animate } for "Just remade" badges */
+  const remadeFlash = new Map();
+  let remakingBeatId = null;
+
+  function markRemade(payload) {
+    const at = payload?.at || Date.now();
+    for (const item of payload?.remade || []) {
+      const id = item.beatId;
+      if (!id) continue;
+      remadeFlash.set(id, {
+        at,
+        keyframeMtime: item.keyframeMtime || at,
+        animate: !!payload.animate,
+      });
+    }
+    for (const id of payload?.only || []) {
+      if (!remadeFlash.has(id)) {
+        remadeFlash.set(id, { at, keyframeMtime: at, animate: !!payload.animate });
+      }
+    }
+    // Expire badges after 2 minutes
+    setTimeout(() => {
+      for (const [id, meta] of remadeFlash) {
+        if (meta.at === at) remadeFlash.delete(id);
+      }
+    }, 120000);
+  }
+
+  function isJustRemade(beatId) {
+    return remadeFlash.has(beatId);
+  }
+
   function renderScripts(tabs) {
     const el = $("scriptsView");
     const beats = tabs?.scripts?.beats || [];
@@ -506,9 +551,10 @@
               <p class="meta">${esc(b.section || "")} · ${t0}s–${t1}s · file ${esc(b.keyframeStem || "")}.png</p>
             </div>
             <div class="shot-actions">
+              ${isJustRemade(b.id) ? `<span class="remade-badge inline">Just remade</span>` : ""}
               <button type="button" class="btn tiny" data-act="goto-kf" data-beat="${esc(b.id)}">View still</button>
-              <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(b.id)}">Remake still</button>
-              <button type="button" class="btn tiny" data-act="remake-clip" data-beat="${esc(b.id)}">Remake still+clip</button>
+              <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(b.id)}"${remakingBeatId === b.id ? " disabled" : ""}>${remakingBeatId === b.id ? "Remaking…" : "Remake still"}</button>
+              <button type="button" class="btn tiny" data-act="remake-clip" data-beat="${esc(b.id)}"${remakingBeatId === b.id ? " disabled" : ""}>Remake still+clip</button>
             </div>
           </header>
           <p class="shot-plain">This shot is a frozen picture of what happens on this lyric line. Change the fields, then remake the still.</p>
@@ -560,16 +606,20 @@
     }
     el.className = "grid";
     el.innerHTML = images
-      .map(
-        (img) => `<div class="card kf-card" data-beat="${esc(img.beatId || "")}">
-        <img src="${img.url}?t=${Date.now()}" alt="${esc(img.name)}" />
-        <div class="cap">${esc(img.name)}</div>
+      .map((img) => {
+        const bust = img.mtime || Date.now();
+        const just = isJustRemade(img.beatId);
+        const busy = remakingBeatId === img.beatId;
+        return `<div class="card kf-card${just ? " just-remade" : ""}${busy ? " remaking" : ""}" data-beat="${esc(img.beatId || "")}">
+        ${just ? `<span class="remade-badge">Just remade</span>` : ""}
+        <img src="${img.url}?t=${bust}" alt="${esc(img.name)}" />
+        <div class="cap">${esc(img.name)}${img.mtime ? ` · ${new Date(img.mtime).toLocaleTimeString()}` : ""}</div>
         <div class="kf-actions">
           <button type="button" class="btn tiny" data-act="edit-script" data-beat="${esc(img.beatId || "")}">Edit script</button>
-          <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(img.beatId || "")}">Remake</button>
+          <button type="button" class="btn tiny primary" data-act="remake" data-beat="${esc(img.beatId || "")}"${busy ? " disabled" : ""}>${busy ? "Remaking…" : "Remake"}</button>
         </div>
-      </div>`,
-      )
+      </div>`;
+      })
       .join("");
   }
 
@@ -598,12 +648,18 @@
     }
     el.className = "grid";
     el.innerHTML = videos
-      .map(
-        (v) => `<div class="card">
-        <video controls src="${v.url}?t=${Date.now()}"></video>
-        <div class="cap">${esc(v.name)}</div>
-      </div>`,
-      )
+      .map((v) => {
+        const bust = v.mtime || Date.now();
+        const stem = v.stem || String(v.name || "").replace(/\.mp4$/i, "");
+        const beatId = /^(\d+)_(.+)$/.exec(stem)?.[2] || stem;
+        return `<div class="card clip-card" data-stem="${esc(stem)}" data-name="${esc(v.name)}" data-beat="${esc(beatId)}">
+        <video controls src="${v.url}?t=${bust}"></video>
+        <div class="cap">${esc(v.name)}${v.mtime ? ` · ${new Date(v.mtime).toLocaleTimeString()}` : ""}</div>
+        <div class="kf-actions">
+          <button type="button" class="btn tiny danger" data-act="delete-clip" data-name="${esc(v.name)}" data-stem="${esc(stem)}" data-beat="${esc(beatId)}">Delete</button>
+        </div>
+      </div>`;
+      })
       .join("");
   }
 
@@ -932,26 +988,69 @@
   }
 
   async function remakeBeat(beatId, { animate = false } = {}) {
-    if (!beatId) return;
+    if (!beatId || remakingBeatId) return;
     const beats = collectScriptEdits();
+    remakingBeatId = beatId;
+    statusMsg.textContent = `Remaking ${beatId}${animate ? " + clip" : ""}…`;
     log(`Remaking ${beatId}${animate ? " + clip" : ""}…`);
-    const res = await fetch("/api/remake-keyframe", {
+    renderScripts(state.tabs);
+    renderKeyframes(state.tabs);
+    try {
+      const res = await fetch("/api/remake-keyframe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          beatId,
+          animate,
+          reuseCutouts: true,
+          beats,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        log(`Remake failed: ${data.error || res.status}`);
+        statusMsg.textContent = `Remake failed: ${data.error || res.status}`;
+        return;
+      }
+      markRemade(data);
+      const mt = data.remade?.[0]?.keyframeMtime;
+      log(
+        `Remake finished: ${beatId}` +
+          (mt ? ` · still ${new Date(mt).toLocaleTimeString()}` : " · still updated"),
+      );
+      statusMsg.textContent = `Remade ${beatId} — open Keyframes to compare`;
+      selectTab(animate ? "clips" : "keyframes");
+      requestAnimationFrame(() => {
+        const card = document.querySelector(
+          `.kf-card[data-beat="${CSS.escape(beatId)}"]`,
+        );
+        card?.scrollIntoView({ behavior: "smooth", block: "center" });
+        card?.classList.add("just-remade-pulse");
+      });
+    } finally {
+      remakingBeatId = null;
+      renderScripts(state.tabs);
+      renderKeyframes(state.tabs);
+    }
+  }
+
+  async function deleteClip({ name, stem, beatId } = {}) {
+    if (!name && !stem && !beatId) return;
+    const label = name || stem || beatId;
+    if (!confirm(`Delete clip ${label}?`)) return;
+    log(`Deleting clip ${label}…`);
+    const res = await fetch("/api/delete-clips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        beatId,
-        animate,
-        reuseCutouts: true,
-        beats,
-      }),
+      body: JSON.stringify({ names: name ? [name] : null, stems: stem ? [stem] : null, beatId }),
     });
     const data = await res.json();
     if (!data.ok) {
-      log(`Remake failed: ${data.error || res.status}`);
+      log(`Delete failed: ${data.error || res.status}`);
       return;
     }
-    log(`Remake finished: ${beatId}`);
-    selectTab("keyframes");
+    log(`Deleted ${data.deleted?.join(", ") || label} · ${data.remaining ?? "?"} left`);
+    selectTab("clips");
   }
 
   $("btnSaveScripts")?.addEventListener("click", () => {
@@ -984,6 +1083,14 @@
     }
     if (act === "remake-clip") {
       remakeBeat(beat, { animate: true });
+      return;
+    }
+    if (act === "delete-clip") {
+      deleteClip({
+        name: btn.dataset.name,
+        stem: btn.dataset.stem,
+        beatId: beat,
+      });
     }
   });
 
@@ -1063,8 +1170,33 @@
     try {
       const msg = JSON.parse(ev.data);
       if (msg.type === "log") log(msg.message);
-      else if (msg.type === "tabs") renderAll(msg.tabs);
-      else if (msg.type === "gpu") {
+      else if (msg.type === "tabs") {
+        state.tabs = msg.tabs;
+        renderAll(msg.tabs);
+      } else if (msg.type === "remake_done") {
+        markRemade(msg);
+        log(
+          `Still updated: ${(msg.only || []).join(", ")}` +
+            (msg.animate ? " (+ clip)" : ""),
+        );
+        if (state.tabs) {
+          renderKeyframes(state.tabs);
+          renderScripts(state.tabs);
+          if (msg.animate) renderClips(state.tabs);
+        }
+        const id = msg.only?.[0];
+        if (id) {
+          selectTab(msg.animate ? "clips" : "keyframes");
+          requestAnimationFrame(() => {
+            const card = document.querySelector(
+              `.kf-card[data-beat="${CSS.escape(id)}"]`,
+            );
+            card?.scrollIntoView({ behavior: "smooth", block: "center" });
+          });
+        }
+      } else if (msg.type === "clips_deleted") {
+        log(`Clips deleted: ${(msg.deleted || []).join(", ")}`);
+      } else if (msg.type === "gpu") {
         state.gpu = msg;
         if ($("gpuBackend") && msg.backend) $("gpuBackend").value = msg.backend;
         log(`GPU: ${msg.backend} → ${msg.comfyUrl}`);

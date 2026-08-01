@@ -417,6 +417,45 @@ textarea {
   gap: 0.35rem;
   padding: 0.35rem 0.45rem 0.55rem;
 }
+.card.kf-card,
+.card.clip-card {
+  position: relative;
+}
+.remade-badge {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  z-index: 2;
+  background: #2a6a3a;
+  color: #d8ffe4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.remade-badge.inline {
+  position: static;
+  box-shadow: none;
+  align-self: center;
+}
+.card.just-remade,
+.card.just-remade-pulse {
+  border-color: #3d9a5c;
+  box-shadow: 0 0 0 2px rgba(61, 154, 92, 0.45);
+}
+.card.remaking {
+  opacity: 0.72;
+}
+@keyframes remadePulse {
+  0% { box-shadow: 0 0 0 0 rgba(61, 154, 92, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(61, 154, 92, 0); }
+  100% { box-shadow: 0 0 0 2px rgba(61, 154, 92, 0.45); }
+}
+.card.just-remade-pulse {
+  animation: remadePulse 1.2s ease-out 2;
+}
 
 .grid {
   display: grid;
