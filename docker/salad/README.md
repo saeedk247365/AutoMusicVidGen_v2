@@ -31,9 +31,11 @@ gh workflow run salad-comfy-image.yml -R saeedk247365/AutoMusicVidGen_v2
 
 | Setting | Value |
 |---------|--------|
-| Image | `saeedk247365/amvg-comfyui:kids-hit-wan22` |
-| Gateway port | **8888** |
-| Startup / ready probe | `GET /system_stats` (long start period — model download) |
+| Image | `ghcr.io/saeedk247365/amvg-comfyui:kids-hit-wan22` |
+| **Gateway port** | **8888** (must match image `COMFY_PORT` — see `SALAD_COMFY_PORT`) |
+| Comfy listen | **8888** inside the container |
+| Local Comfy (PC) | **8188** — unrelated; do not use for Salad gateway |
+| Startup / ready probe | `GET /system_stats` on **8888** (long start — model download) |
 | GPU | RTX 4090-class 24GB+ |
 | RAM / disk | 30GB+ RAM, 80GB+ disk |
 | Auth | Salad-Api-Key recommended |

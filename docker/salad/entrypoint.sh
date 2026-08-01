@@ -2,14 +2,15 @@
 set -euo pipefail
 
 COMFY_DIR="${COMFY_DIR:-/opt/ComfyUI}"
-# Salad Container Gateway for this group is configured on port 8888.
-# Prefer explicit COMFY_PORT, then Salad PORT, then 8888.
-COMFY_PORT="${COMFY_PORT:-${PORT:-8888}}"
+# Canonical Salad port — MUST match Container Gateway in the Salad portal.
+# Do not use Salad's generic $PORT (it has disagreed with the gateway before).
+# Override only with explicit COMFY_PORT in the container group env.
+COMFY_PORT="${COMFY_PORT:-8888}"
 cd "$COMFY_DIR"
 
 echo "════════════════════════════════════════════════════"
 echo " AMVG Salad ComfyUI"
-echo " Port: $COMFY_PORT"
+echo " Port: $COMFY_PORT  (gateway must match)"
 echo "════════════════════════════════════════════════════"
 
 # Mark not-ready until models + Comfy are up (Salad readiness probe can hit /ready via sidecar — we use system_stats)

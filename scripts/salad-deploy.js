@@ -9,6 +9,7 @@ import { parseArgs } from "../lib/comfy-client.js";
 import {
   saladApiKey,
   saladComfyUrl,
+  SALAD_COMFY_PORT,
 } from "../lib/gpu-backend.js";
 import {
   saladOrg,
@@ -111,17 +112,25 @@ async function createGroup(org, project, name, image, gpuIds) {
     networking: {
       protocol: "http",
       auth: true,
-      port: 8888,
+      port: SALAD_COMFY_PORT,
     },
     startup_probe: {
-      http: { path: "/system_stats", port: 8888, scheme: "http" },
+      http: {
+        path: "/system_stats",
+        port: SALAD_COMFY_PORT,
+        scheme: "http",
+      },
       initial_delay_seconds: 60,
       period_seconds: 15,
       timeout_seconds: 10,
       failure_threshold: 40,
     },
     readiness_probe: {
-      http: { path: "/system_stats", port: 8888, scheme: "http" },
+      http: {
+        path: "/system_stats",
+        port: SALAD_COMFY_PORT,
+        scheme: "http",
+      },
       initial_delay_seconds: 30,
       period_seconds: 10,
       timeout_seconds: 5,
