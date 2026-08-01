@@ -80,6 +80,9 @@ npm run mvid
 - **Lyrics** tab is editable — edit before Approve  
 - **Auto-approve all** (toolbar checkbox) skips gates and runs end-to-end  
 - **Regenerate** re-runs the current stage  
+- **Output** — `Preview 768×768` (default) or `YouTube 1920×1088` for production (stills + Wan + stitch; 16-aligned ~1080p)  
+- **Batch** — open any `batches/<date>/<slug>` to review generated assets in the tabs  
+- **GPU** — `Local` | `Split (local + Salad Wan)` | `Salad Cloud` — split runs prep/stills locally and Wan clips on Salad when configured  
 
 ```bash
 npm run mvid -- --count 1
@@ -264,7 +267,7 @@ Don’t re-run full `generate:adam` or bare `--force` unless you intend to touch
 
 ComfyUI must be running. Edit `comfyRoot` in the train config if needed.
 
-**Adam** (uses `dataset/adam/images` → `adamboy_character_v1`):
+**Adam** (uses `dataset/adam/images` → `adamboy_character_v2`):
 
 ```bash
 npm run train:adam

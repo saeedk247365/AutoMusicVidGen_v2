@@ -9,8 +9,8 @@ $Ckpts = Join-Path $Bake "checkpoints"
 New-Item -ItemType Directory -Force -Path $Loras, $Ckpts | Out-Null
 
 $copyList = @(
-  @{ Src = "loras\adamboy_character_v1.safetensors"; Dst = "loras\adamboy_character_v1.safetensors"; Required = $true },
-  @{ Src = "loras\sashamom_character_v1.safetensors"; Dst = "loras\sashamom_character_v1.safetensors"; Required = $true },
+  @{ Src = "loras\adamboy_character_v2.safetensors"; Dst = "loras\adamboy_character_v2.safetensors"; Required = $true },
+  @{ Src = "loras\sashamom_character_v2.safetensors"; Dst = "loras\sashamom_character_v2.safetensors"; Required = $true },
   @{ Src = "loras\wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"; Dst = "loras\wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"; Required = $true },
   @{ Src = "loras\wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"; Dst = "loras\wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"; Required = $true },
   @{ Src = "checkpoints\realcartoon3d_v15.safetensors"; Dst = "checkpoints\realcartoon3d_v15.safetensors"; Required = $true }
