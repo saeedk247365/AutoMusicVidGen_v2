@@ -480,7 +480,7 @@ async function main() {
     motion: flag("--prompt") || `${customScene}, natural ambient motion, flat 2D anime`,
   };
 
-  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8188";
+  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8888";
   const seed = flag("--seed") ? Number(flag("--seed")) : 42;
 
   const cfg = {

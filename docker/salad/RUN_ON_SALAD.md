@@ -41,7 +41,7 @@ npm run salad:deploy
 
 This creates the container group (GPU, **port 8888**, auth), starts it, and writes `SALAD_COMFY_URL` into `.env`.
 
-**Port rule:** Salad Comfy listen port, Container Gateway, and deploy probes are all **8888** (`SALAD_COMFY_PORT` in `lib/gpu-backend.js`). Local Comfy stays on **8188**. Never point the Salad gateway at 8188.
+**Port rule:** Comfy is **8888** everywhere — local PC, Salad listen, Container Gateway, and deploy probes (`COMFY_PORT` in `lib/gpu-backend.js`).
 
 First boot downloads Wan weights (~40GB) — wait until Status = running/ready (can take a while; Salad doesn’t bill the same during image prepare).
 

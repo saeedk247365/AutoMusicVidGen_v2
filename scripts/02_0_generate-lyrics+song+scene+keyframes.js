@@ -28,7 +28,10 @@
  *   --song batches/<date>/<slug> --keyframes-only   (regen stills; normalizes actions.json)
  *   --song … --keyframes-only --replan               (re-run Qwen beats from lyrics.txt)
  *   --song … --keyframes-only --force --reuse-cutouts (re-layout scale/placement only)
+ *   --song … --keyframes-only --force --only 01_intro,03_verse_1  (remake specific beats)
  *   --kids-hit   opt-in: 75s home songs, timed dense beats (classic defaults unchanged)
+ *   --output-resolution preview|youtube   (default preview = 768×768; youtube = 1920×1088)
+ *   --still-width N --still-height N --char-width N --char-height N
  */
 import { mkdir, writeFile, readFile, copyFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
@@ -67,6 +70,8 @@ import {
   KIDS_HIT_LYRICS_PROMPT,
   KIDS_HIT_SCENES_PROMPT,
   KIDS_HIT_STYLES,
+  resolveOutputResolution,
+  DEFAULT_OUTPUT_RESOLUTION,
   assignBeatTimings,
   locationFromLyricHint,
   fillKidsHitPrompt,
@@ -1646,7 +1651,7 @@ async function generateSongKeyframes(
   songDir,
   plan,
   sharedScenesDir,
-  { force = false, reuseCutouts = false, kidsHit = false } = {},
+  { force = false, reuseCutouts = false, kidsHit = false, onlyBeats = null } = {},
 ) {
   const scenesDir = join(songDir, "scenes");
   const keyframesDir = join(songDir, "keyframes");
@@ -1683,9 +1688,43 @@ async function generateSongKeyframes(
     JSON.stringify(planNorm, null, 2),
   );
 
+  const onlySet = onlyBeats?.size
+    ? onlyBeats
+    : (() => {
+        const { flag: flagArg } = parseArgs();
+        const raw = flagArg("--only", null);
+        if (!raw) return null;
+        return new Set(
+          raw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
+      })();
+  if (onlySet?.size) {
+    console.log(`  --only ${[...onlySet].join(",")}`);
+  }
+
+  function matchesOnly(beat, index1Based) {
+    if (!onlySet) return true;
+    const pad = String(index1Based).padStart(2, "0");
+    const id = String(beat.id || "");
+    const stem = `${pad}_${id}`;
+    for (const key of onlySet) {
+      const k = String(key);
+      if (k === id || k === pad || k === stem) return true;
+      if (id === k.replace(/^\d+_/, "")) return true;
+      if (stem.includes(k) || k.includes(id)) return true;
+    }
+    return false;
+  }
+
   let k = 0;
+  let made = 0;
   for (const beat of planNorm.beats) {
     k += 1;
+    if (!matchesOnly(beat, k)) continue;
+    made += 1;
     const location = beat.location;
     const scenePath =
       (existsSync(join(scenesDir, `${location}.png`))
@@ -1953,6 +1992,11 @@ async function generateSongKeyframes(
     }
     console.log(`  saved: ${dest}`);
   }
+  if (onlySet) {
+    console.log(
+      `Only-mode: remade ${made} beat(s) matching ${[...onlySet].join(", ")}`,
+    );
+  }
 }
 
 function uniqueSlug(base, used, batchDir) {
@@ -1979,7 +2023,7 @@ async function main() {
     flag("--comfy", null) ||
     resolveComfyUrl() ||
     characterRoot.comfyUrl ||
-    "http://127.0.0.1:8188";
+    "http://127.0.0.1:8888";
 
   const count = Math.max(1, Number(flag("--count", String(SETTINGS.count))));
   const bpm = Number(flag("--bpm", String(SETTINGS.bpm)));
@@ -2001,6 +2045,21 @@ async function main() {
   const keyframesOnly = has("--keyframes-only");
   const force = has("--force");
   const kidsHit = has("--kids-hit");
+  const resPreset = resolveOutputResolution(
+    flag("--output-resolution", DEFAULT_OUTPUT_RESOLUTION),
+  );
+  SETTINGS.stillWidth = Number(
+    flag("--still-width", String(resPreset.stillWidth)),
+  );
+  SETTINGS.stillHeight = Number(
+    flag("--still-height", String(resPreset.stillHeight)),
+  );
+  SETTINGS.charWidth = Number(
+    flag("--char-width", String(resPreset.charWidth)),
+  );
+  SETTINGS.charHeight = Number(
+    flag("--char-height", String(resPreset.charHeight)),
+  );
   const songArg = flag("--song", null);
   /** Interactive mvid gates: lyrics | song | plan | keyframes */
   const stopAfter = flag("--stop-after", null);

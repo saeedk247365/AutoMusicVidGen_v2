@@ -13,13 +13,14 @@
  *   node scripts/02_1_animate-keyframes.js --song <path> --force --only 01,02
  *
  * Optional:
- *   --comfy http://127.0.0.1:8188
+ *   --comfy http://127.0.0.1:8888
  *   --width 640 --height 1136 --length 49 --fps 16 --steps 4 --cfg 1 --shift 8
  *   --seed 123
  *   --force          overwrite existing clips
  *   --only 01,03     only keyframe filename prefixes / indices
  *   --kids-hit       opt-in: energetic motion + default length 81 (classic defaults unchanged)
  *   --energetic-motion   same motion prompts without changing length default
+ *   --output-resolution preview|youtube  (Wan size; default preview 768×768; youtube 1920×1088)
  *
  * Do NOT run while LoRA training is occupying the GPU.
  */
@@ -36,12 +37,14 @@ import {
   comfy,
   uploadImage,
   queueAndWait,
-  extractImageFromHistory,
+  extractVideoFromHistory,
+  resetComfyExecution,
 } from "../lib/comfy-client.js";
+import { isSaladUrl } from "../lib/gpu-backend.js";
 import {
   KIDS_HIT_WAN_LENGTH,
-  KIDS_HIT_WAN_WIDTH,
-  KIDS_HIT_WAN_HEIGHT,
+  resolveOutputResolution,
+  DEFAULT_OUTPUT_RESOLUTION,
   kidsHitMotionPrompt,
   pickWanLength,
 } from "../lib/kids-hit.js";
@@ -73,14 +76,15 @@ function wanI2VWorkflow(cfg, imageName, motionPrompt, negative, seed) {
       class_type: "UNETLoader",
       inputs: {
         unet_name: "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
-        weight_dtype: "default",
+        // Match fp8_scaled weights — "default" can wedge on Salad Blackwell.
+        weight_dtype: "fp8_e4m3fn",
       },
     },
     "4": {
       class_type: "UNETLoader",
       inputs: {
         unet_name: "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
-        weight_dtype: "default",
+        weight_dtype: "fp8_e4m3fn",
       },
     },
     "5": {
@@ -199,7 +203,8 @@ function wanI2VWorkflow(cfg, imageName, motionPrompt, negative, seed) {
 }
 
 async function findNewestVideo(prefix, comfyUrl) {
-  const dirs = await resolveComfyDirs(comfyUrl || "http://127.0.0.1:8188");
+  const dirs = await resolveComfyDirs(comfyUrl || "http://127.0.0.1:8888");
+  if (dirs.remote || !dirs.output) return null;
   const candidates = [
     join(dirs.output, "video"),
     join(COMFY_ROOT, "output", "video"),
@@ -209,7 +214,7 @@ async function findNewestVideo(prefix, comfyUrl) {
   const pred = (f) =>
     f.toLowerCase().endsWith(".mp4") && (!prefix || f.includes(prefix));
   for (const dir of candidates) {
-    if (!existsSync(dir)) continue;
+    if (!dir || !existsSync(dir)) continue;
     const files = (await readdir(dir))
       .filter(pred)
       .map((f) => join(dir, f));
@@ -381,7 +386,14 @@ function motionPromptFor(stem, actions, { kidsHit = false } = {}) {
 function passesOnlyFilter(stem, onlySet) {
   if (!onlySet) return true;
   for (const token of onlySet) {
-    if (stem === token || stem.startsWith(token) || stem.startsWith(`${token}_`)) {
+    if (
+      stem === token ||
+      stem.startsWith(`${token}_`) ||
+      stem.endsWith(`_${token}`) ||
+      stem.includes(`_${token}_`) ||
+      // allow bare beat id like 01_intro against stem 03_01_intro
+      stem.split("_").slice(1).join("_") === token
+    ) {
       return true;
     }
   }
@@ -483,34 +495,39 @@ async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
     );
 
     await sleep(800);
-    // Prefer exact outputs from this prompt_id — avoid stale mp4 reuse
-    let videoPath = null;
+    // Prefer exact outputs from this prompt_id — local copy or Salad /view download
+    let comfySource = null;
     try {
-      for (const nodeId of Object.keys(entry.outputs || {})) {
-        const gifs = entry.outputs[nodeId].gifs || entry.outputs[nodeId].videos;
-        if (gifs?.length) {
-          const g = gifs[0];
-          const dirs = await resolveComfyDirs(comfyUrl);
-          const candidates = [
-            join(dirs.output, g.subfolder || "", g.filename),
-            join(dirs.output, "video", g.filename),
-            join(COMFY_ROOT, "output", g.subfolder || "", g.filename),
-            join(COMFY_ROOT, "output", "video", g.filename),
-          ];
-          videoPath = candidates.find((p) => existsSync(p)) || null;
-          if (videoPath) break;
-        }
+      const extracted = await extractVideoFromHistory(comfyUrl, entry);
+      if (extracted?.buffer?.length) {
+        await writeFile(dest, extracted.buffer);
+        comfySource = extracted.meta?.localPath || extracted.meta?.filename || "history:/view";
+        console.log(
+          `      downloaded ${extracted.buffer.length} bytes` +
+            (extracted.meta?.filename ? ` (${extracted.meta.filename})` : ""),
+        );
+      } else {
+        const outKeys = Object.keys(entry?.outputs || {});
+        console.warn(
+          `      no video in history outputs [${outKeys.join(",")}]` +
+            (outKeys[0]
+              ? ` keys=${Object.keys(entry.outputs[outKeys[0]] || {}).join(",")}`
+              : ""),
+        );
       }
-    } catch {
-      /* fall through */
+    } catch (err) {
+      console.warn(`      history video extract failed: ${err?.message || err}`);
     }
-    if (!videoPath) {
-      videoPath = await findNewestVideo(outName, comfyUrl);
+    if (!comfySource) {
+      const videoPath = await findNewestVideo(outName, comfyUrl);
+      if (videoPath) {
+        await copyFile(videoPath, dest);
+        comfySource = videoPath;
+      }
     }
-    if (!videoPath) {
+    if (!comfySource || !existsSync(dest)) {
       throw new Error(`No Wan output found for ${stem} (prefix ${outName})`);
     }
-    await copyFile(videoPath, dest);
     console.log(`      → ${dest}`);
     manifest.clips.push({
       stem,
@@ -519,7 +536,7 @@ async function animateSong(songDir, cfg, comfyUrl, { kidsHit = false } = {}) {
       motion,
       seed,
       length: clipCfg.length,
-      comfySource: videoPath,
+      comfySource,
     });
 
     // Progressive preview: concat finished clips + song audio so far
@@ -564,21 +581,22 @@ async function main() {
 
   const widthExplicit = has("--width");
   const heightExplicit = has("--height");
+  const resPreset = resolveOutputResolution(
+    flag("--output-resolution", DEFAULT_OUTPUT_RESOLUTION),
+  );
+  // Match still size from 02_0 when kids-hit or --output-resolution is set.
+  const usePresetSize = has("--kids-hit") || has("--output-resolution");
   const cfg = {
     width: Number(
       flag(
         "--width",
-        has("--kids-hit") && !widthExplicit
-          ? String(KIDS_HIT_WAN_WIDTH)
-          : "640",
+        usePresetSize && !widthExplicit ? String(resPreset.wanWidth) : "640",
       ),
     ),
     height: Number(
       flag(
         "--height",
-        has("--kids-hit") && !heightExplicit
-          ? String(KIDS_HIT_WAN_HEIGHT)
-          : "1136",
+        usePresetSize && !heightExplicit ? String(resPreset.wanHeight) : "1136",
       ),
     ),
     length,
@@ -591,7 +609,7 @@ async function main() {
 
   const { resolveComfyUrl } = await import("../lib/gpu-backend.js");
   const comfyUrl =
-    flag("--comfy", null) || resolveComfyUrl() || "http://127.0.0.1:8188";
+    flag("--comfy", null) || resolveComfyUrl() || "http://127.0.0.1:8888";
   console.log("02_1 Animate keyframes — Wan 2.2 I2V");
   console.log(
     `  ${cfg.width}x${cfg.height} length=${cfg.length} fps=${cfg.fps} steps=${cfg.steps}` +
@@ -600,6 +618,11 @@ async function main() {
   console.log(`  Comfy: ${comfyUrl}`);
 
   await comfy(comfyUrl, "/system_stats");
+  if (isSaladUrl(comfyUrl)) {
+    // Drop orphaned/wedged Wan jobs from prior mvid kills or LoRA interrupts.
+    console.log("  Salad: clearing any stuck queue before Wan…");
+    await resetComfyExecution(comfyUrl, { label: "pre-Wan" });
+  }
 
   const targets = await listSongDirs(songArg || batchArg);
   for (const songDir of targets) {

@@ -351,7 +351,7 @@ async function main() {
 
   const test = has("--test");
   const imagePath = flag("--image");
-  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8188";
+  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8888";
 
   const cfg = {
     checkpoint: character.checkpoint || "realcartoon3d_v15.safetensors",

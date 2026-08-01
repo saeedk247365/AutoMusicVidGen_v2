@@ -247,7 +247,7 @@ async function main() {
   const character = existsSync(CHAR_PATH)
     ? JSON.parse(stripBom(await readFile(CHAR_PATH, "utf8")))
     : {};
-  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8188";
+  const comfyUrl = character.comfyUrl || "http://127.0.0.1:8888";
 
   if (!existsSync(ACE_PYTHON)) {
     throw new Error(`ACE Python not found: ${ACE_PYTHON}`);

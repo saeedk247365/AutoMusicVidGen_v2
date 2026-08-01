@@ -151,7 +151,7 @@ async function loadConfig() {
   let raw = await readFile(CONFIG_PATH, "utf8");
   if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
   const cfg = JSON.parse(raw);
-  cfg.comfyUrl = flag("--comfy", cfg.comfyUrl || "http://127.0.0.1:8188");
+  cfg.comfyUrl = flag("--comfy", cfg.comfyUrl || "http://127.0.0.1:8888");
   cfg.width = cfg.width || 512;
   cfg.height = cfg.height || 768;
   cfg.steps = cfg.steps || 28;

@@ -1,5 +1,5 @@
 {
-  "comfyUrl": "http://127.0.0.1:8188",
+  "comfyUrl": "http://127.0.0.1:8888",
   "comfyRoot": "ComfyUI",
   "datasetDir": "dataset/pipchr/images",
   "checkpoint": "realcartoon3d_v15.safetensors",
@@ -20,7 +20,8 @@
   "algorithm": "LoRA",
   "gradientCheckpointing": true,
   "checkpointDepth": 2,
-  "offloading": true,
+  "offloading": false,
+  "bypassMode": false,
   "existingLora": "[None]",
 
   "copyToModelsLoras": true,

@@ -4,7 +4,7 @@
   "role": "mom",
   "trigger": "sashamom",
   "age": "adult mother, about 30 years old",
-  "comfyUrl": "http://127.0.0.1:8188",
+  "comfyUrl": "http://127.0.0.1:8888",
   "checkpoint": "realcartoon3d_v15.safetensors",
   "loraName": "sashamom_character_v2.safetensors",
   "loraStrength": 0.28,

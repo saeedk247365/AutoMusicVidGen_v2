@@ -11,6 +11,7 @@ import {
   isComfyUp,
   DEFAULT_COMFY_URL,
 } from "../lib/ensure-comfy.js";
+import { LOCAL_COMFY_PORT } from "../lib/gpu-backend.js";
 import { existsSync } from "fs";
 import { join } from "path";
 
@@ -35,7 +36,7 @@ console.log(`→ ${DEFAULT_COMFY_URL}`);
 
 const child = spawn(
   py,
-  ["main.py", "--listen", "127.0.0.1", "--port", "8188"],
+  ["main.py", "--listen", "127.0.0.1", "--port", String(LOCAL_COMFY_PORT)],
   { cwd: COMFY_DIR, stdio: "inherit" },
 );
 

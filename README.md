@@ -1,10 +1,10 @@
-Ôªø# AutoMusicVidGen
+# AutoMusicVidGen
 
-End-to-end preschool music videos: **train Adam‚Äôs LoRA ‚Üí write a song ‚Üí stills ‚Üí Wan clips ‚Üí final.mp4**.
+End-to-end preschool music videos: **train Adamís LoRA ? write a song ? stills ? Wan clips ? final.mp4**.
 
 ---
 
-## Full chain (character ‚Üí final video)
+## Full chain (character ? final video)
 
 Do this once for the character, then repeat the music-video steps for each song.
 
@@ -13,14 +13,14 @@ Do this once for the character, then repeat the music-video steps for each song.
 | Need | Check |
 |------|--------|
 | Node.js 18+ | `node -v` |
-| ComfyUI | `http://127.0.0.1:8188` running (see start command below) |
+| ComfyUI | `http://127.0.0.1:8888` running (see start command below) |
 | Checkpoint | `realcartoon3d_v15.safetensors` in Comfy `models/checkpoints/` |
 | Ollama | `qwen3:14b` pulled (`ollama pull qwen3:14b`) |
 | ACE-Step 1.5 | Path configured in the 02_0 script |
 | ffmpeg | On `PATH` |
 | rembg (Python) | Used for character cutouts during keyframes |
 
-**Start ComfyUI (CLI)** ‚Äî optional if you use `npm run mvid` (it starts ComfyUI when needed). For manual stage runs:
+**Start ComfyUI (CLI)** ó optional if you use `npm run mvid` (it starts ComfyUI when needed). For manual stage runs:
 
 ```powershell
 npm run comfy
@@ -30,10 +30,10 @@ Or from the repo root:
 
 ```powershell
 cd ComfyUI
-.\venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8188
+.\venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8888
 ```
 
-Ready when the UI answers at `http://127.0.0.1:8188`.
+Ready when the UI answers at `http://127.0.0.1:8888`.
 
 Character definition lives in `characters/adam.json` (trigger word `adamboy`, LoRA name wired for inference).
 
@@ -45,11 +45,11 @@ Generate a **master** still on chroma-green, approve it, then build keyframes + 
 
 ```bash
 npm run generate:adam:master    # re-run until you like the face/outfit
-npm run generate:adam:approve   # locks master ‚Äî required before full dataset
-npm run generate:adam           # keyframes + shots ‚Üí dataset/adam/
+npm run generate:adam:approve   # locks master ó required before full dataset
+npm run generate:adam           # keyframes + shots ? dataset/adam/
 ```
 
-Optional: `--ref "E:\path\to\ref.png"` ¬∑ `--set-master "E:\path\to\still.png"` ¬∑ `--force`
+Optional: `--ref "E:\path\to\ref.png"` ∑ `--set-master "E:\path\to\still.png"` ∑ `--force`
 
 Outputs: `dataset/adam/` (master, keyframes, captioned images for training).
 
@@ -71,18 +71,18 @@ Weights land in ComfyUI `models/loras/` (and optionally `loras/` in this repo). 
 
 ### 3. Make a music video (`npm run mvid`)
 
-Opens an **Express + EJS** multi-tab studio in your browser (`http://127.0.0.1:3847/`). Starts ComfyUI if needed, then generates each stage and **waits for Approve** (lyrics ‚Üí song ‚Üí storyline/scenes/scripts ‚Üí keyframes ‚Üí clips ‚Üí **final.mp4**).
+Opens an **Express + EJS** multi-tab studio in your browser (`http://127.0.0.1:3847/`). Starts ComfyUI if needed, then generates each stage and **waits for Approve** (lyrics ? song ? storyline/scenes/scripts ? keyframes ? clips ? **final.mp4**).
 
 ```bash
 npm run mvid
 ```
 
-- **Lyrics** tab is editable ‚Äî edit before Approve  
+- **Lyrics** tab is editable ó edit before Approve  
 - **Auto-approve all** (toolbar checkbox) skips gates and runs end-to-end  
 - **Regenerate** re-runs the current stage  
-- **Output** ‚Äî `Preview 768√ó768` (default) or `YouTube 1920√ó1088` for production (stills + Wan + stitch; 16-aligned ~1080p)  
-- **Batch** ‚Äî open any `batches/<date>/<slug>` to review generated assets in the tabs  
-- **GPU** ‚Äî `Local` | `Split (local + Salad Wan)` | `Salad Cloud` ‚Äî split runs prep/stills locally and Wan clips on Salad when configured  
+- **Output** ó `Preview 768◊768` (default) or `YouTube 1920◊1088` for production (stills + Wan + stitch; 16-aligned ~1080p)  
+- **Batch** ó open any `batches/<date>/<slug>` to review generated assets in the tabs  
+- **GPU** ó `Local` | `Split (local + Salad Wan)` | `Salad Cloud` ó split runs prep/stills locally and Wan clips on Salad when configured  
 
 ```bash
 npm run mvid -- --count 1
@@ -110,18 +110,18 @@ Contract: [docs/CONTINUITY.md](docs/CONTINUITY.md). Golden storyboard: `batches/
 
 ```
 characters/adam.json
-        ‚îÇ
-        ‚ñº
-  dataset + LoRA (adamboy)     ‚Üê steps 1‚Äì2 (once)
-        ‚îÇ
-        ‚ñº
-  02_0 --kids-hit              ‚Üê lyrics ‚Üí ACE mp3 ‚Üí Qwen beats ‚Üí plates ‚Üí rembg ‚Üí keyframes
-        ‚îÇ                         (GUI pauses after lyrics, song, plan, keyframes)
-        ‚ñº
-  02_1 --kids-hit              ‚Üê Wan I2V per keyframe
-        ‚îÇ
-        ‚ñº
-  02_2 --loop-fill             ‚Üê timed concat + audio ‚Üí final.mp4
+        ¶
+        ?
+  dataset + LoRA (adamboy)     ? steps 1ñ2 (once)
+        ¶
+        ?
+  02_0 --kids-hit              ? lyrics ? ACE mp3 ? Qwen beats ? plates ? rembg ? keyframes
+        ¶                         (GUI pauses after lyrics, song, plan, keyframes)
+        ?
+  02_1 --kids-hit              ? Wan I2V per keyframe
+        ¶
+        ?
+  02_2 --loop-fill             ? timed concat + audio ? final.mp4
 ```
 
 #### Regen / replan an existing song
@@ -149,7 +149,7 @@ npm run mvid -- --classic
 # or: npm run mvid:classic
 ```
 
-Add `--auto-approve` to skip GUI gates. Stages: `mvid:classic:lyrics` ¬∑ `mvid:classic:animate` ¬∑ `mvid:classic:stitch`.
+Add `--auto-approve` to skip GUI gates. Stages: `mvid:classic:lyrics` ∑ `mvid:classic:animate` ∑ `mvid:classic:stitch`.
 ---
 
 ### Output layout
@@ -166,14 +166,14 @@ batches/<date>/<slug>/
   final.mp4
 ```
 
-Empty room stills are shared under `scenes/` (`home`, `kitchen`, `doorway`, `hallway`, ‚Ä¶).
+Empty room stills are shared under `scenes/` (`home`, `kitchen`, `doorway`, `hallway`, Ö).
 
 ---
 
 ## Requirements
 
 - Node.js 18+
-- ComfyUI at `http://127.0.0.1:8188` ‚Äî `npm run comfy` (or `cd ComfyUI` then `.\venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8188`)
+- ComfyUI at `http://127.0.0.1:8888` ó `npm run comfy` (or `cd ComfyUI` then `.\venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8888`)
 - Ollama `qwen3:14b` (lyrics / scene plans)
 - ACE-Step 1.5 (path set in scripts)
 - ffmpeg on PATH
@@ -190,11 +190,11 @@ characters/
 
 ## Base checkpoint
 
-Default checkpoint is `realcartoon3d_v15.safetensors` (SD1.5 cartoon ‚Äî more identity-stable than DreamShaper).
+Default checkpoint is `realcartoon3d_v15.safetensors` (SD1.5 cartoon ó more identity-stable than DreamShaper).
 
 Put the file in ComfyUI `models/checkpoints/`. Character JSON + `train-config.json` already point at it.
 
-SDXL options (e.g. Autismmix Pony) need a separate SDXL OpenPose/FaceID path ‚Äî not wired yet.
+SDXL options (e.g. Autismmix Pony) need a separate SDXL OpenPose/FaceID path ó not wired yet.
 
 ## Character dataset
 
@@ -209,18 +209,18 @@ npm run generate:adam
 npm run train:adam
 ```
 
-Optional: `--ref "E:\path\to\ref.png"` ¬∑ `--set-master "E:\path\to\still.png"` ¬∑ `--force`
+Optional: `--ref "E:\path\to\ref.png"` ∑ `--set-master "E:\path\to\still.png"` ∑ `--force`
 
 Outputs: `dataset/adam/`
 
 ### Identity locks (training plates)
 
-- **Chroma-green backgrounds only** for master / keyframes / shots (`#00FF00` key) ‚Äî captions include `plain solid chroma key green background` so the LoRA can drop it at inference. Never train kitchen/lawn/bedroom into the character LoRA; those are composited later.
-- Song plates use the same green key ‚Üí cut ‚Üí composite onto empty scenes.
-- **FaceID** on rebuilds and whenever denoise ‚â• 0.65 (not on easy ~0.55 edits).
-- **Keyframe refresh is off by default** ‚Äî pass `--keyframe-refresh` only if you want shots to update the bank (risk of contamination).
-- **Identity gate** ‚Äî after each keyframe/shot, InsightFace similarity vs master; rejects and retries below threshold (`--identity-threshold 0.40`, `--identity-retries 3`, `--skip-identity-gate` to disable).
-- Rebuild EmptyLatent only for sit, crawl, rear, and front‚Üístrict profile.
+- **Chroma-green backgrounds only** for master / keyframes / shots (`#00FF00` key) ó captions include `plain solid chroma key green background` so the LoRA can drop it at inference. Never train kitchen/lawn/bedroom into the character LoRA; those are composited later.
+- Song plates use the same green key ? cut ? composite onto empty scenes.
+- **FaceID** on rebuilds and whenever denoise = 0.65 (not on easy ~0.55 edits).
+- **Keyframe refresh is off by default** ó pass `--keyframe-refresh` only if you want shots to update the bank (risk of contamination).
+- **Identity gate** ó after each keyframe/shot, InsightFace similarity vs master; rejects and retries below threshold (`--identity-threshold 0.40`, `--identity-retries 3`, `--skip-identity-gate` to disable).
+- Rebuild EmptyLatent only for sit, crawl, rear, and front?strict profile.
 
 **Full remake after switching to chroma green** (wipe old gray plates, regenerate, retrain):
 
@@ -238,36 +238,36 @@ Then regen song keyframes with `--keyframes-only --replan`.
 Leave the approved master alone. Fix the **keyframe** first if that pose bank image is wrong; otherwise remake only the bad **shots**.
 
 1. **Decide where the bad pose lives**
-   - Bad look in `dataset/<char>/keyframes/<pose>.png` ‚Üí fix that keyframe, then remake shots that use it.
-   - Keyframe looks fine, only `dataset/<char>/images/<trigger>_XX_‚Ä¶.png` is off ‚Üí remake that shot only.
+   - Bad look in `dataset/<char>/keyframes/<pose>.png` ? fix that keyframe, then remake shots that use it.
+   - Keyframe looks fine, only `dataset/<char>/images/<trigger>_XX_Ö.png` is off ? remake that shot only.
 
-2. **Remake one or a few shots** (usual case) ‚Äî use shot `id`s from the character JSON:
+2. **Remake one or a few shots** (usual case) ó use shot `id`s from the character JSON:
 
 ```bash
 node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam --shots-only --only 04_sitting,05_crawling --force
 ```
 
-- `--only` ‚Äî comma-separated shot ids
-- `--shots-only` ‚Äî skip master; don‚Äôt rebuild the whole keyframe bank
-- `--force` ‚Äî overwrite those images (or delete the PNGs and omit `--force`)
+- `--only` ó comma-separated shot ids
+- `--shots-only` ó skip master; donít rebuild the whole keyframe bank
+- `--force` ó overwrite those images (or delete the PNGs and omit `--force`)
 
-3. **If the keyframe is the problem** ‚Äî delete only the bad keyframe file(s), then:
+3. **If the keyframe is the problem** ó delete only the bad keyframe file(s), then:
 
 ```bash
 node scripts/generate-dataset.js --character characters/adam.json --out dataset/adam --keyframes-only
 ```
 
-That regenerates **missing** keyframes only (avoid `--force-keyframes` unless you want all of them remade). Then remake dependent shots with `--shots-only --only ‚Ä¶ --force`.
+That regenerates **missing** keyframes only (avoid `--force-keyframes` unless you want all of them remade). Then remake dependent shots with `--shots-only --only Ö --force`.
 
-4. **Hard poses** (sit / crawl / profile / rear) ‚Äî FaceID is already applied when denoise ‚â• 0.65 or on rebuilds; add `--aux-faceid` only if you want FaceID on every remake including easy edits.
+4. **Hard poses** (sit / crawl / profile / rear) ó FaceID is already applied when denoise = 0.65 or on rebuilds; add `--aux-faceid` only if you want FaceID on every remake including easy edits.
 
-Don‚Äôt re-run full `generate:adam` or bare `--force` unless you intend to touch master/approval.
+Donít re-run full `generate:adam` or bare `--force` unless you intend to touch master/approval.
 
 ### Train LoRA
 
 ComfyUI must be running. Edit `comfyRoot` in the train config if needed.
 
-**Adam** (uses `dataset/adam/images` ‚Üí `adamboy_character_v2`):
+**Adam** (uses `dataset/adam/images` ? `adamboy_character_v2`):
 
 ```bash
 npm run train:adam
@@ -283,7 +283,7 @@ Weights land in ComfyUI `models/loras/` and (if enabled) `loras/` in this repo. 
 
 ## Music video details (`mvid`)
 
-Song keyframes use a **composite pipeline**: solo studio character plates ‚Üí rembg cut ‚Üí paste on empty scene.
+Song keyframes use a **composite pipeline**: solo studio character plates ? rembg cut ? paste on empty scene.
 
 ### Kids-hit (default for `npm run mvid`)
 
