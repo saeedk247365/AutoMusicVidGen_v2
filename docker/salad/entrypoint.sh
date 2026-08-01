@@ -18,9 +18,10 @@ echo "→ Ensuring models…"
 python "$COMFY_DIR/download_models.py"
 
 echo "→ Starting ComfyUI (native API)…"
-# Listen on all interfaces for Salad container gateway
+# Salad Container Gateway reaches instances over IPv6 — IPv4-only (0.0.0.0) → 503.
+# Explicit dual-stack; do NOT use bare --listen next to --port (argparse would steal it).
 exec python main.py \
-  --listen 0.0.0.0 \
+  --listen "0.0.0.0,::" \
   --port "$COMFY_PORT" \
   --disable-auto-launch \
   "$@"
